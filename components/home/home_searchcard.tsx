@@ -1,13 +1,12 @@
 
 "use client"
 
-import { invoke } from "@tauri-apps/api/core"
+import { convertFileSrc, invoke } from "@tauri-apps/api/core"
 import { useEffect, useRef, useState } from "react"
-import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -15,10 +14,9 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SearchIcon } from "lucide-react"
-import { ButtonGroup } from "@/components/ui/button-group"
+import { PROVIDER_LABEL } from "@/lib/api"
 
 
 type WallpaperInfo = {
@@ -30,22 +28,26 @@ type WallpaperInfo = {
 }
 
 export default function Home_SearchCard() {
+  const router = useRouter()
   const [info, setInfo] = useState<WallpaperInfo | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [imgLoaded, setImgLoaded] = useState<boolean>(false)
   const [imgError, setImgError] = useState<boolean>(false)
   const imgLoadTimer = useRef<number | null>(null)
+  const [assetUrl, setAssetUrl] = useState<string | null>(null)
   const [query, setQuery] = useState<string>("")
-  const [results, setResults] = useState<string[] | null>(null)
+
+  const submitSearch = (event: React.FormEvent) => {
+    event.preventDefault()
+    const term = query.trim()
+    if (!term) return
+    router.push(`/search?q=${encodeURIComponent(term)}`)
+  }
 
   useEffect(() => {
     invoke("get_wallpaper_info")
       .then((p: unknown) => setInfo(p as WallpaperInfo))
       .catch((e: unknown) => setInfo({ path: `error: ${String(e)}` }))
-
-    invoke("get_wallpaper_preview")
-      .then((p: unknown) => setPreview(p as string))
-      .catch(() => setPreview(null))
   }, [])
 
   useEffect(() => {
@@ -69,9 +71,35 @@ export default function Home_SearchCard() {
     }
   }, [preview, info?.path])
 
-  const imageSrc = preview ?? (info ? `file://${info.path}` : "")
-  const isFileProtocol = imageSrc.startsWith("file:")
-  const hasImage = imageSrc !== ""
+  // compute assetUrl only on the client to avoid calling convertFileSrc during SSR
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      setAssetUrl(null)
+      return
+    }
+
+    if (preview && preview !== "") {
+      setAssetUrl(preview)
+      return
+    }
+
+    if (info && info.path) {
+      try {
+        const url = convertFileSrc(info.path)
+        setAssetUrl(url)
+      } catch (e) {
+        console.warn("convertFileSrc failed", e)
+        setAssetUrl(null)
+      }
+      return
+    }
+
+    setAssetUrl(null)
+  }, [preview, info])
+
+
+
+
 
   return (
     <>
@@ -82,11 +110,6 @@ export default function Home_SearchCard() {
             <CardHeader>
               <CardTitle>Your Current wallpaper</CardTitle>
               <CardDescription>This is your current wallpaper information.</CardDescription>
-              <CardAction>
-                <Button variant="outline" size="sm" className="ml-auto">
-                  Delete
-                </Button>
-              </CardAction>
             </CardHeader>
             <CardContent>
               {/* Grid: stack on small, left column = image on lg+ */}
@@ -95,35 +118,11 @@ export default function Home_SearchCard() {
                   {!imgLoaded && (
                     <Skeleton className="w-full h-40 xl:h-44 rounded-md" />
                   )}
-                  {hasImage && (
+                  {assetUrl && (
                     <>
                       {!imgError ? (
-                        !isFileProtocol ? (
-                          <Image
-                            src={imageSrc}
-                            alt="wallpaper"
-                            fill
-                            className={`object-cover rounded-md ${imgLoaded ? "opacity-100" : "opacity-0"}`}
-                            onLoadingComplete={() => {
-                              setImgLoaded(true)
-                              if (imgLoadTimer.current) {
-                                window.clearTimeout(imgLoadTimer.current)
-                                imgLoadTimer.current = null
-                              }
-                            }}
-                            onError={() => {
-                              setImgError(true)
-                              setImgLoaded(true)
-                              if (imgLoadTimer.current) {
-                                window.clearTimeout(imgLoadTimer.current)
-                                imgLoadTimer.current = null
-                              }
-                            }}
-                            unoptimized
-                          />
-                        ) : (
                           <img
-                            src={imageSrc}
+                            src={assetUrl}
                             alt="wallpaper"
                             onLoad={() => {
                               setImgLoaded(true)
@@ -142,7 +141,6 @@ export default function Home_SearchCard() {
                             }}
                             className={`w-full h-40 xl:h-44 object-cover rounded-md ${imgLoaded ? "block" : "hidden"}`}
                           />
-                        )
                       ) : (
                         <div className="w-full h-40 xl:h-44 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
                           <div className="text-sm">Image not available</div>
@@ -183,9 +181,9 @@ export default function Home_SearchCard() {
         <div className="w-full lg:flex-1 flex items-center">
           <div className="mx-auto w-full max-w-lg py-8 lg:py-0 text-center ">
             <h1 className="text-3xl font-extrabold mb-2 text-center ">Search Wallpapers</h1>
-            <p className="text-muted-foreground mb-6 max-w-2xl text-center ">Search your local wallpapers by filename or metadata.</p>
+            <p className="text-muted-foreground mb-6 max-w-2xl text-center ">Search {PROVIDER_LABEL} by keyword.</p>
 
-            <div className="w-full">
+            <form onSubmit={submitSearch} className="w-full">
               <label className="relative block">
                 <span className="absolute inset-y-0 left-3 flex items-center text-muted-foreground">
                   <SearchIcon className="w-4 h-4" />
@@ -193,29 +191,18 @@ export default function Home_SearchCard() {
                 <Input
                   value={query}
                   onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
-                  placeholder="Search wallpapers, tags, filenames..."
+                  placeholder="Mountains, neon, minimal…"
                   className="pl-10 pr-4"
                 />
               </label>
 
               <div className="mt-3 flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">Local-only search</div>
-                <Button onClick={() => {
-                  console.log('search:', query)
-                  setResults(query ? [
-                    `Result for "${query}" (placeholder)`
-                  ] : null)
-                }}>Search</Button>
+                <div className="text-sm text-muted-foreground">{PROVIDER_LABEL}</div>
+                <Button type="submit" disabled={!query.trim()}>
+                  Search
+                </Button>
               </div>
-
-              {results && (
-                <div className="mt-4 space-y-2">
-                  {results.map((r, idx) => (
-                    <div key={idx} className="p-2 rounded-md bg-muted text-sm">{r}</div>
-                  ))}
-                </div>
-              )}
-            </div>
+            </form>
           </div>
         </div>
       </div>

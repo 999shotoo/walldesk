@@ -736,8 +736,64 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scroll-behavior: auto;
   }
   body {
     @apply bg-background backdrop-blur-sm text-foreground;
   }
+}
+
+/* Prevent pull-to-refresh / overscroll navigation inside the embedded webview */
+html, body, #__next {
+  overscroll-behavior: none;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: none;
+}
+
+/* For safety, disable touch bounce on scrollable elements */
+* {
+  -webkit-overflow-scrolling: auto;
+}
+
+/* Disable text selection globally except for inputs, textareas and contenteditable elements */
+body, body * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow selection inside form controls and editable regions */
+input, textarea, [contenteditable="true"], input *, textarea * {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/*
+Source - https://stackoverflow.com/q
+Posted by Dimitri Vorontzov, modified by community. See post 'Timeline' for change history
+Retrieved 2025-12-10, License - CC BY-SA 4.0
+*/
+/* 
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  border-radius: 600px;
+}
+
+::-webkit-scrollbar-track-piece {
+  background-color: var(--card);
+   border-radius: 600px;
+}
+
+::-webkit-scrollbar-thumb:vertical {
+  height: 8px;
+  background-color: var(--muted);
+   border-radius: 600px;
+} */
+
+::-webkit-scrollbar {
+  display: none ;
 }

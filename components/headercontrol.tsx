@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window"
 import { platform } from "@tauri-apps/plugin-os"
 import Sidebar from "./sidebar"
 
+
 interface LayoutProps {
   children: ReactNode
 }
@@ -21,6 +22,7 @@ const Header = ({ children }: LayoutProps) => {
     const initializeHeader = async () => {
       const osPlatform = await platform()
       setOs(osPlatform as OSType)
+      // setOs("linux") // For testing on non-macOS systems
 
       // Fetch window title and maximize state
       const appWindow = getCurrentWindow()
@@ -67,7 +69,7 @@ const Header = ({ children }: LayoutProps) => {
 
   const WindowsTitleBar = () => (
     <div
-      className="fixed top-0 left-0 right-0 h-8  flex items-center justify-between pl-2"
+      className="fixed top-0 left-0 right-0 h-8 bg-background z-40 flex items-center justify-between pl-2"
       onMouseDown={handleMouseDown}
     >
       <div className="flex items-center space-x-2">
@@ -105,7 +107,7 @@ const Header = ({ children }: LayoutProps) => {
 
   const MacOSTitleBar = () => (
     <div
-      className="w-full h-11 bg-muted border-b border-border flex items-center justify-between px-3"
+      className="w-full bg-muted border-b border-border flex items-center justify-between px-3 py-2"
       onMouseDown={handleMouseDown}
     >
       <div className="flex items-center space-x-2 control-buttons">
@@ -137,14 +139,14 @@ const Header = ({ children }: LayoutProps) => {
 
   const LinuxTitleBar = () => (
     <div
-      className="w-full h-9 bg-secondary border-b border-border flex items-center justify-between px-3 shadow-sm"
+      className="w-full fixed top-0 left-0 right-0 h-8 bg-background z-40 flex items-center justify-between px-3 shadow-sm"
       onMouseDown={handleMouseDown}
     >
       <div className="flex items-center space-x-2">
-        <div className="w-4 h-4 bg-primary rounded-sm flex items-center justify-center shadow-inner">
+        {/* <div className="w-4 h-4 bg-primary rounded-sm flex items-center justify-center shadow-inner">
           <div className="w-2 h-2 bg-primary-foreground rounded-sm"></div>
         </div>
-        <span className="text-xs text-secondary-foreground font-normal select-none">{appTitle}</span>
+        <span className="text-xs text-secondary-foreground font-normal select-none">{appTitle}</span> */}
       </div>
       <div className="flex items-center space-x-1 control-buttons">
         <button
@@ -158,18 +160,9 @@ const Header = ({ children }: LayoutProps) => {
           className="w-8 h-7 hover:bg-muted rounded flex items-center justify-center transition-colors"
         >
           {isMaximized ? (
-            <svg
-              className="w-3.5 h-3.5 text-secondary-foreground"
-              viewBox="0 0 12 12"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <rect x="2" y="2" width="7" height="7" />
-              <path d="M3 3 V1 H11 V9 H9" />
-            </svg>
+            <Copy className="w-3 h-3 text-foreground scale-x-[-1]" strokeWidth={1.5} />
           ) : (
-            <Square className="w-3.5 h-3.5 text-secondary-foreground" strokeWidth={2} />
+            <Square className="w-3 h-3 text-foreground" strokeWidth={1.5} />
           )}
         </button>
         <button
@@ -183,12 +176,14 @@ const Header = ({ children }: LayoutProps) => {
   )
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden">
+    <div className="flex flex-col h-screen w-full">
       {os === "windows" && <WindowsTitleBar />}
       {os === "macos" && <MacOSTitleBar />}
       {os === "linux" && <LinuxTitleBar />}
       <Sidebar>
-        <main className={`flex-1 overflow-hidden mt-2`}>{children}</main>
+
+        <main className={`flex-1 overflow-y-auto mt-3`}>{children}</main>
+
       </Sidebar>
     </div>
   )

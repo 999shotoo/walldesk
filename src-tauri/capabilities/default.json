@@ -29,6 +29,12 @@
           "path": "*"
         }
       ]
+    },
+    "store:default",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://wallhaven.cc" }, { "url": "https://*.pexels.com" }],
+      "deny": [{ "url": "https://private.tauri.app" }]
     }
   ]
 }
