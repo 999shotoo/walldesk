@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { useSettings } from "./settings"
+import { useOffline } from "./offline"
 import {
   fetchWallpapers,
   feedKey,
   type Cursors,
   type FeedFilters,
+  type FeedSource,
   type Provider,
   type ProviderError,
 } from "./api"
@@ -51,7 +53,26 @@ export function useWallpaperFeed(
   {
     providers,
     enabled = true,
-  }: { providers?: readonly Provider[]; enabled?: boolean } = {}
+    source,
+    sourceKey = "",
+  }: {
+    providers?: readonly Provider[]
+    enabled?: boolean
+    /**
+     * Where pages come from. Defaults to the multi-provider search.
+     *
+     * The point of the override is everything below it: a collection view gets
+     * the infinite-scroll observer, the cross-page dedupe, the generation guard
+     * and the error handling unchanged, and only supplies its own pager.
+     */
+    source?: FeedSource
+    /**
+     * Identity of `source`, so switching to a different collection resets the
+     * feed. Needed because `source` is a closure — a fresh one is built on every
+     * render, so its reference cannot be used to detect a real change.
+     */
+    sourceKey?: string
+  } = {}
 ): WallpaperFeed {
   const [wallpapers, setWallpapers] = useState<CombinedWallpaper[]>([])
   const [loading, setLoading] = useState(false)
@@ -66,6 +87,7 @@ export function useWallpaperFeed(
   // reference between calls.
   const apiKey = useSettings((state) => state.wallhavenApiKey)
   const settingsHydrated = useSettings((state) => state.hydrated)
+  const online = useOffline((state) => state.online)
 
   // `AppBoot` normally does this, but hydrating here too means a feed rendered
   // outside that layout still gets its key. `hydrate` returns early once done,
@@ -80,8 +102,14 @@ export function useWallpaperFeed(
    * landed — a wasted round trip and a visible flash as the grid cleared.
    * Hydration is a local file read, and `hydrated` flips even when it fails, so
    * this cannot stall the feed.
+   *
+   * `online` is in here so offline mode is enforced in one place rather than at
+   * each of the four browse surfaces: no feed anywhere can fire a request that is
+   * certain to fail. It also gives recovery for free — this is a dependency of the
+   * reset effect below, so the feed reloads itself the moment the connection is
+   * confirmed back.
    */
-  const ready = enabled && settingsHydrated
+  const ready = enabled && settingsHydrated && online
 
   // Latest values, read inside the stable `load` callback so that changing a
   // filter does not rebuild the callback and re-trigger the observer effect.
@@ -93,6 +121,8 @@ export function useWallpaperFeed(
   readyRef.current = ready
   const apiKeyRef = useRef(apiKey)
   apiKeyRef.current = apiKey
+  const sourceRef = useRef(source)
+  sourceRef.current = source
 
   const cursorsRef = useRef<Cursors>({})
   const seenRef = useRef<Set<string>>(new Set())
@@ -113,7 +143,7 @@ export function useWallpaperFeed(
       // nothing would leave the sentinel on screen without a new intersection
       // event, so the feed would silently stop; keep pulling instead.
       for (let round = 0; round < MAX_EMPTY_ROUNDS; round++) {
-        const page = await fetchWallpapers({
+        const page = await (sourceRef.current ?? fetchWallpapers)({
           filters: filtersRef.current,
           cursors: cursorsRef.current,
           providers: providersRef.current,
@@ -126,6 +156,14 @@ export function useWallpaperFeed(
         hasMoreRef.current = page.hasMore
         setHasMore(page.hasMore)
         setErrors(page.errors)
+
+        // Every provider failed and nothing came back. That looks like a dead
+        // connection rather than a dead provider, so let the offline check decide
+        // — it probes rather than trusting this, since a rate-limited response
+        // reaches here too.
+        if (page.errors.length > 0 && page.wallpapers.length === 0) {
+          useOffline.getState().reportFailure()
+        }
 
         const fresh = page.wallpapers.filter((wallpaper) => {
           const key = feedKey(wallpaper)
@@ -151,6 +189,8 @@ export function useWallpaperFeed(
       ])
       hasMoreRef.current = false
       setHasMore(false)
+      // A thrown request is the strongest hint available that the network is gone.
+      useOffline.getState().reportFailure()
     } finally {
       if (generation === generationRef.current) {
         inFlightRef.current = false
@@ -163,9 +203,10 @@ export function useWallpaperFeed(
   const filterKey = canonicalFilterKey(filters)
   const providerKey = (providers ?? []).join(",")
 
-  // Reset and reload whenever the query, the filters, the provider set, or the
-  // API key changes — the accumulated items belong to the previous request. The
-  // key is in here because it can widen what Wallhaven returns.
+  // Reset and reload whenever the query, the filters, the provider set, the
+  // source, or the API key changes — the accumulated items belong to the
+  // previous request. The key is in here because it can widen what Wallhaven
+  // returns.
   useEffect(() => {
     generationRef.current += 1
     cursorsRef.current = {}
@@ -180,8 +221,25 @@ export function useWallpaperFeed(
     setLoading(false)
 
     if (ready) void load()
-  }, [filterKey, providerKey, ready, apiKey, load])
+  }, [filterKey, providerKey, sourceKey, ready, apiKey, load])
 
+  /**
+   * Infinite scroll.
+   *
+   * `wallpapers.length` is in the dependency list on purpose, and it is what
+   * makes this work at all. `IntersectionObserver` reports *changes* in
+   * intersection, and with a 1200px `rootMargin` the sentinel is usually still
+   * inside the root's expanded rect after a page lands — one screenful of cards
+   * does not push it 1200px clear. So it went: intersecting (fires, loads
+   * page 1) → still intersecting (no event, ever again). The feed served one
+   * page and then stopped, no matter how far you scrolled.
+   *
+   * Re-observing after each append forces a fresh initial callback, so the
+   * question "is the sentinel still in range?" gets asked again. If it is, the
+   * next page loads immediately; the loop ends when the content finally pushes
+   * the sentinel out of range or the provider runs out. `inFlightRef` keeps the
+   * re-observations from stacking requests.
+   */
   useEffect(() => {
     const sentinel = sentinelRef.current
     if (!sentinel || !hasMore || !ready) return
@@ -196,7 +254,7 @@ export function useWallpaperFeed(
 
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [hasMore, ready, load])
+  }, [hasMore, ready, load, wallpapers.length])
 
   return {
     wallpapers,

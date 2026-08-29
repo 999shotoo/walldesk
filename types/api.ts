@@ -28,6 +28,18 @@ interface WallhavenItem {
     category: string;
 }
 
+/**
+ * One entry from `/collections/<username>` — collection metadata only, no
+ * wallpapers. `count` is absent on some responses, hence optional.
+ */
+interface WallhavenCollectionListEntry {
+    id: number;
+    label?: string;
+    views?: number;
+    public?: number;
+    count?: number;
+}
+
 
 interface CombinedWallpaper {
     id: string;

@@ -1,33 +1,36 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import {
-  ArrowLeft,
-  Check,
-  Download,
-  Heart,
-  Monitor,
-  TriangleAlert,
-} from "lucide-react"
+// Not next/link — see the note in components/sidebar.tsx.
+import { Link } from "next-transition-router"
+import { ArrowLeft, Download, Heart, Monitor, TriangleAlert } from "lucide-react"
 
 import { fetchWallpaperById } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { useFavorites, useIsFavorite } from "@/lib/store"
+import { useIsOffline } from "@/lib/offline"
 import { useSettings } from "@/lib/settings"
+import { toastLoading, toastProgress, toastSettle, errorText } from "@/lib/toast"
+import {
+  applyWallpaper,
+  downloadHref,
+  parentDir,
+  saveWallpaperCopy,
+  useDownload,
+  useDownloads,
+} from "@/lib/downloads"
 import {
   FIT_MODES,
   FIT_MODE_LABELS,
   type DownloadProgress,
   type FitMode,
-  downloadAndSetWallpaper,
-  downloadWallpaper,
   formatBytes,
   onDownloadProgress,
-  wallpaperFilename,
 } from "@/lib/wallpaper"
+import { OfflineNotice } from "@/components/common/offline"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -36,13 +39,31 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 
-type ActionState =
-  | { kind: "idle" }
-  | { kind: "working"; label: string; progress: DownloadProgress | null }
-  | { kind: "done"; message: string }
-  | { kind: "error"; message: string }
+/** What the two disk actions are called, and which one a run is. */
+type DetailAction = "set" | "download"
+
+/**
+ * The transfer's byte readout, as one line of text.
+ *
+ * What the progress bar used to say beside itself. A toast has no room for the
+ * bar, but the numbers are the part worth keeping — a large wallpaper on a slow
+ * connection is the case this exists for.
+ */
+function progressText(progress: DownloadProgress): string {
+  const total = progress.total
+  if (total && total > 0) {
+    const percent = Math.min(100, Math.round((progress.downloaded / total) * 100))
+    return `${percent}% of ${formatBytes(total)}`
+  }
+  // Some providers send no Content-Length, so there is no percentage to compute
+  // — count the bytes up instead of showing a fraction of nothing.
+  return formatBytes(progress.downloaded)
+}
 
 function WallpaperDetail() {
+  // Plain next/navigation router on purpose: next-transition-router's
+  // `navigate` short-circuits `back()` before it stages a transition, so its
+  // router would behave identically here with an extra layer in between.
   const router = useRouter()
   const params = useSearchParams()
   const id = params.get("id")
@@ -51,10 +72,26 @@ function WallpaperDetail() {
   const [wallpaper, setWallpaper] = useState<CombinedWallpaper | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [fullResLoaded, setFullResLoaded] = useState(false)
-  const [action, setAction] = useState<ActionState>({ kind: "idle" })
+
+  /** Whether a transfer is in flight — all the buttons need from it. */
+  const [working, setWorking] = useState(false)
+  /**
+   * The toast reporting that transfer.
+   *
+   * A ref rather than state: the progress listener writes to it many times a
+   * second and the id is not rendered, so re-rendering the page on every packet
+   * would be waste. It is also read from inside a listener registered once per
+   * transfer, which a state value would close over stale.
+   */
+  const pendingToast = useRef<string | null>(null)
 
   const isFavorite = useIsFavorite({ id: id ?? "", provider })
   const toggleFavorite = useFavorites((state) => state.toggleFavorite)
+
+  const offline = useIsOffline()
+  // So the offline state can offer the local copy of *this* wallpaper, if the
+  // user happens to have one, instead of only pointing at the list.
+  const downloaded = useDownload(id ? { id, provider } : null)
 
   // The saved default, overridable for this one wallpaper. Settings hydrate off
   // disk after mount, so adopt the stored value when it lands — unless the user
@@ -73,6 +110,7 @@ function WallpaperDetail() {
   // step has hydrated settings, which would otherwise leave it on a skeleton.
   useEffect(() => {
     void useSettings.getState().hydrate()
+    void useDownloads.getState().hydrate()
   }, [])
 
   useEffect(() => {
@@ -84,6 +122,11 @@ function WallpaperDetail() {
     // Wait for the stored key, for the same reason the feed does: fetching
     // anonymously first would just be a discarded request.
     if (!settingsHydrated) return
+
+    // Nothing here can succeed offline, and a failed request would surface as
+    // "could not load this wallpaper" — which blames the wallpaper for a problem
+    // with the connection. The offline branch below explains it properly.
+    if (offline) return
 
     let cancelled = false
     setWallpaper(null)
@@ -97,27 +140,33 @@ function WallpaperDetail() {
         else setLoadError("That wallpaper could not be found.")
       })
       .catch((error: unknown) => {
-        if (!cancelled) setLoadError(String(error))
+        // `errorText` rather than `String`, which would prefix "Error: " to a
+        // message shown to the user — the same reason the toasts use it.
+        if (!cancelled) setLoadError(errorText(error))
       })
 
     return () => {
       cancelled = true
     }
-  }, [id, provider, wallhavenApiKey, settingsHydrated])
+  }, [id, provider, wallhavenApiKey, settingsHydrated, offline])
 
   // Progress events are global to the backend, so only listen while a transfer
   // is actually in flight.
-  const isWorking = action.kind === "working"
   useEffect(() => {
-    if (!isWorking) return
+    if (!working) return
 
     let unlisten: (() => void) | undefined
     let cancelled = false
 
     onDownloadProgress((progress) => {
-      setAction((current) =>
-        current.kind === "working" ? { ...current, progress } : current
-      )
+      // Straight onto the pending toast. Updating a `loading` toast is safe in a
+      // way updating any other kind is not: it was created without a dismiss
+      // timer, so there is none for this to cut short.
+      if (pendingToast.current !== null) {
+        toastProgress(pendingToast.current, {
+          description: progressText(progress),
+        })
+      }
     }).then((fn) => {
       if (cancelled) fn()
       else unlisten = fn
@@ -127,37 +176,81 @@ function WallpaperDetail() {
       cancelled = true
       unlisten?.()
     }
-  }, [isWorking])
+  }, [working])
 
-  const handleSetWallpaper = useCallback(async () => {
-    if (!wallpaper) return
-    setAction({ kind: "working", label: "Applying wallpaper", progress: null })
-    try {
-      await downloadAndSetWallpaper(
-        wallpaper.imageurl,
-        wallpaperFilename(wallpaper),
-        fitMode
-      )
-      setAction({ kind: "done", message: "Wallpaper applied." })
-    } catch (error: unknown) {
-      setAction({ kind: "error", message: String(error) })
-    }
-  }, [wallpaper, fitMode])
+  /**
+   * Save the file, and apply it if that is what was asked for.
+   *
+   * Both go through `lib/downloads`, which writes the file and records it in the
+   * downloads ledger as one step. Applying counts as a download: it has to save
+   * the file first, so the file exists either way and belongs in the list.
+   */
+  const run = useCallback(
+    async (action: DetailAction) => {
+      if (!wallpaper) return
 
-  const handleDownload = useCallback(async () => {
-    if (!wallpaper) return
-    setAction({ kind: "working", label: "Downloading", progress: null })
-    try {
-      const path = await downloadWallpaper(
-        wallpaper.imageurl,
-        wallpaperFilename(wallpaper),
-        "downloads"
+      // No description: the first progress event fills it in, and anything put
+      // here would be overwritten a moment later. The page already shows which
+      // wallpaper this is, so the title has nothing to add either.
+      const id = toastLoading(
+        action === "set" ? "Applying wallpaper" : "Downloading"
       )
-      setAction({ kind: "done", message: `Saved to ${path}` })
-    } catch (error: unknown) {
-      setAction({ kind: "error", message: String(error) })
-    }
-  }, [wallpaper])
+      pendingToast.current = id
+      setWorking(true)
+
+      try {
+        if (action === "set") {
+          await applyWallpaper(wallpaper, fitMode)
+          toastSettle(id, {
+            kind: "success",
+            title: "Wallpaper applied",
+            description: FIT_MODE_LABELS[fitMode],
+          })
+        } else {
+          const record = await saveWallpaperCopy(wallpaper)
+          // The folder, not the full path: where it went is the useful half, and
+          // the filename is already the title of this toast.
+          toastSettle(id, {
+            kind: "success",
+            title: `Saved ${record.filename}`,
+            description: parentDir(record.path),
+          })
+        }
+      } catch (error: unknown) {
+        toastSettle(id, {
+          kind: "error",
+          title:
+            action === "set"
+              ? `${wallpaper.title} could not be set as your wallpaper`
+              : `${wallpaper.title} could not be downloaded`,
+          error,
+        })
+      } finally {
+        pendingToast.current = null
+        setWorking(false)
+      }
+    },
+    [wallpaper, fitMode]
+  )
+
+  // Ahead of `loadError`: offline is the more specific explanation, and the
+  // request was skipped rather than failed, so there is nothing to report anyway.
+  if (offline) {
+    return (
+      <OfflineNotice message="This page loads the wallpaper from its provider, so it needs a connection.">
+        {downloaded && (
+          // The same wallpaper, from the copy on disk — which is the whole reason
+          // the downloads routes exist separately from this one.
+          <Link
+            href={downloadHref(downloaded)}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Open the downloaded copy
+          </Link>
+        )}
+      </OfflineNotice>
+    )
+  }
 
   if (loadError) {
     return (
@@ -254,7 +347,7 @@ function WallpaperDetail() {
               setFitMode(value as FitMode)
             }}
           >
-            <SelectTrigger size="sm" className="w-[150px]" disabled={isWorking}>
+            <SelectTrigger size="sm" className="w-[150px]" disabled={working}>
               <span>{FIT_MODE_LABELS[fitMode]}</span>
             </SelectTrigger>
             <SelectContent>
@@ -279,80 +372,21 @@ function WallpaperDetail() {
 
           <Button
             variant="outline"
-            onClick={handleDownload}
-            disabled={!wallpaper || isWorking}
+            onClick={() => void run("download")}
+            disabled={!wallpaper || working}
           >
             <Download className="h-4 w-4" />
             Download
           </Button>
 
-          <Button onClick={handleSetWallpaper} disabled={!wallpaper || isWorking}>
+          <Button
+            onClick={() => void run("set")}
+            disabled={!wallpaper || working}
+          >
             <Monitor className="h-4 w-4" />
             Set as wallpaper
           </Button>
         </div>
-      </div>
-
-      {action.kind !== "idle" && (
-        <div
-          className={`rounded-lg border px-3 py-2 text-sm ${
-            action.kind === "error"
-              ? "border-destructive/40 text-destructive"
-              : "border-border text-muted-foreground"
-          }`}
-        >
-          {action.kind === "working" && (
-            <ProgressLine label={action.label} progress={action.progress} />
-          )}
-          {action.kind === "done" && (
-            <span className="flex items-center gap-2">
-              <Check className="h-4 w-4" />
-              <span className="break-all">{action.message}</span>
-            </span>
-          )}
-          {action.kind === "error" && (
-            <span className="flex items-center gap-2">
-              <TriangleAlert className="h-4 w-4 shrink-0" />
-              <span className="break-all">{action.message}</span>
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ProgressLine({
-  label,
-  progress,
-}: {
-  label: string
-  progress: DownloadProgress | null
-}) {
-  const percent =
-    progress?.total && progress.total > 0
-      ? Math.min(100, Math.round((progress.downloaded / progress.total) * 100))
-      : null
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between gap-3">
-        <span>{label}…</span>
-        <span className="tabular-nums">
-          {progress
-            ? percent !== null
-              ? `${percent}% of ${formatBytes(progress.total!)}`
-              : formatBytes(progress.downloaded)
-            : ""}
-        </span>
-      </div>
-      <div className="bg-muted h-1 w-full overflow-hidden rounded-full">
-        <div
-          className={`bg-primary h-full transition-all duration-200 ${
-            percent === null ? "w-1/3 animate-pulse" : ""
-          }`}
-          style={percent !== null ? { width: `${percent}%` } : undefined}
-        />
       </div>
     </div>
   )

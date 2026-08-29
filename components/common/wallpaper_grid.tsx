@@ -18,8 +18,11 @@ const DEFAULT_EAGER_COUNT = 8
  * Matches the old masonry breakpoints: 2 columns below 1024, 3 up to 1280, 4
  * beyond. `gap-4` replaces the per-card bottom margin masonry needed, which is
  * why the card itself no longer carries one.
+ *
+ * Exported so other grids of the same cards — the downloads list — line up with
+ * this one instead of restating the breakpoints.
  */
-const GRID_COLUMNS = "grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4"
+export const GRID_COLUMNS = "grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4"
 
 export function WallpaperGrid({
   wallpapers,

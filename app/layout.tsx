@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import ShortcutBlocker from "@/components/shortcut-blocker";
+import { PALETTE_BOOTSTRAP_SCRIPT } from "@/lib/theme";
 
 
 
@@ -29,15 +30,25 @@ export default async function RootLayout({
 }>) {
 
   return (
-    <html lang="en">
+    // `suppressHydrationWarning`: both next-themes and the palette bootstrap
+    // below mutate <html> before React attaches, so the server markup is
+    // expected to differ here.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Must run before first paint, or the window renders in the default
+            palette and then repaints into the stored one. */}
+        <script dangerouslySetInnerHTML={{ __html: PALETTE_BOOTSTRAP_SCRIPT }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
-          disableTransitionOnChange
+          // Transitions are handled by the `.theme-switching` window in
+          // globals.css instead, so light/dark cross-fades like the palette
+          // switch rather than snapping.
         >
             <ShortcutBlocker />
             {children}

@@ -4,15 +4,34 @@ import { useState } from "react"
 
 import { PALETTE } from "@/lib/constant"
 import { useWallpaperFeed } from "@/lib/use_wallpaper_feed"
+import { useIsOffline } from "@/lib/offline"
+import { useResolutionQuery } from "@/lib/settings"
+import { OfflineNotice } from "@/components/common/offline"
 import { WallpaperFeedView } from "@/components/common/wallpaper_feed"
 import { cn } from "@/lib/utils"
 
 export default function ColorsPage() {
   const [color, setColor] = useState<string>(PALETTE[7].value)
+  const offline = useIsOffline()
+  const resolution = useResolutionQuery()
 
   // Pexels' colour filter only works on `/v1/search`, which needs a term, so
   // this browses Wallhaven alone — it matches colours without one.
-  const feed = useWallpaperFeed({ color }, { providers: ["wallhaven"] })
+  const feed = useWallpaperFeed(
+    { color, ...resolution },
+    { providers: ["wallhaven"] }
+  )
+
+  // The swatches go with the feed: picking one is a query, and there is nothing
+  // to query.
+  if (offline) {
+    return (
+      <div className="pt-5">
+        <h1 className="py-4 text-2xl font-semibold">Browse by colour</h1>
+        <OfflineNotice message="Browsing by colour needs a connection. Wallpapers you've downloaded are still available on this device." />
+      </div>
+    )
+  }
 
   return (
     <div className="pt-5">

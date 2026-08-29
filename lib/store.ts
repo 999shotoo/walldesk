@@ -4,6 +4,8 @@ import { useMemo } from "react"
 import { create } from "zustand"
 import { load, type Store } from "@tauri-apps/plugin-store"
 
+import { toastError } from "./toast"
+
 const STORE_FILE = "favorites.json"
 const FAVORITES_KEY = "favorites"
 
@@ -29,45 +31,75 @@ type FavoritesState = {
   /** Whole wallpaper objects, so the favorites view renders without refetching. */
   favorites: Record<string, CombinedWallpaper>
   hydrated: boolean
-  error: string | null
   hydrate: () => Promise<void>
   toggleFavorite: (wallpaper: CombinedWallpaper) => Promise<void>
 }
 
+/**
+ * The read in flight, if any.
+ *
+ * `hydrated` is not a sufficient guard on its own: it is only set once the awaited
+ * read comes back, so two callers mounting in the same tick — `AppBoot` and a page
+ * that hydrates defensively — both get past it and both read the file. That was
+ * merely wasteful when a failure set an `error` field both would set identically;
+ * now that a failure raises a toast, it would report one problem twice.
+ *
+ * Same shape as `storePromise` above, and cleared on settle so a future caller can
+ * retry if this one failed.
+ */
+let hydratePromise: Promise<void> | null = null
+
 export const useFavorites = create<FavoritesState>((set, get) => ({
   favorites: {},
   hydrated: false,
-  error: null,
 
-  hydrate: async () => {
-    if (get().hydrated) return
-    try {
-      const store = await getStore()
-      const saved =
-        (await store.get<Record<string, CombinedWallpaper>>(FAVORITES_KEY)) ?? {}
-      set({ favorites: saved, hydrated: true, error: null })
-    } catch (error: unknown) {
-      // A failed hydrate must not block the UI — favorites just start empty.
-      set({ hydrated: true, error: String(error) })
-    }
+  hydrate: () => {
+    if (get().hydrated) return Promise.resolve()
+
+    hydratePromise ??= (async () => {
+      try {
+        const store = await getStore()
+        const saved =
+          (await store.get<Record<string, CombinedWallpaper>>(FAVORITES_KEY)) ?? {}
+        set({ favorites: saved, hydrated: true })
+      } catch (error: unknown) {
+        // A failed hydrate must not block the UI — favorites just start empty.
+        set({ hydrated: true })
+        toastError("Your favorites could not be read from disk", error)
+      }
+    })().finally(() => {
+      hydratePromise = null
+    })
+
+    return hydratePromise
   },
 
   toggleFavorite: async (wallpaper) => {
     const key = wallpaperKey(wallpaper)
     const next = { ...get().favorites }
+    const removing = Boolean(next[key])
 
-    if (next[key]) delete next[key]
+    if (removing) delete next[key]
     else next[key] = wallpaper
 
     // Update optimistically so the heart responds immediately, then persist.
-    set({ favorites: next, error: null })
+    set({ favorites: next })
 
     try {
       const store = await getStore()
       await store.set(FAVORITES_KEY, next)
       await store.save()
     } catch (error: unknown) {
-      set({ error: String(error) })
+      // Only the write failed, so the heart in the UI is now telling the user
+      // something that will not survive a restart. Worth interrupting for — and
+      // phrased around the thing they just clicked, since a bare store error
+      // means nothing next to a heart icon.
+      toastError(
+        removing
+          ? "That wallpaper was un-favorited, but the change was not saved"
+          : "That wallpaper was favorited, but the change was not saved",
+        error
+      )
     }
   },
 }))

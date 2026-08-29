@@ -160,10 +160,14 @@ impl From<FitMode> for wallpaper::Mode {
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SaveTarget {
-    /// `Pictures/WallDesk`. Wallpapers we intend to apply live here, because the
-    /// OS reads the file back on every login — a temp file would break.
+    /// `Pictures/WallDesk`, which is where everything the app saves now goes.
     Library,
-    /// The OS downloads folder, for explicit "save a copy" actions.
+    /// The OS downloads folder.
+    ///
+    /// Nothing writes here any more — explicit "save a copy" actions go to the
+    /// library alongside applied wallpapers, so a user has one folder to look in
+    /// rather than two. Kept because the downloads ledger recorded this target for
+    /// files saved before the change, and those records still have to deserialize.
     Downloads,
 }
 
@@ -175,14 +179,33 @@ pub struct DownloadProgress {
     pub total: Option<u64>,
 }
 
-fn resolve_target_dir(app: &AppHandle, target: SaveTarget) -> Result<PathBuf, String> {
+/// Subdirectory of Pictures that the app owns.
+const LIBRARY_DIR_NAME: &str = "WallDesk";
+
+/// The app's wallpaper directory: `Pictures/WallDesk`.
+///
+/// Resolved through Tauri's path API so it lands where each platform expects
+/// without any per-OS branching here — `%USERPROFILE%\Pictures` on Windows,
+/// `~/Pictures` on macOS, `$XDG_PICTURES_DIR` on Linux.
+///
+/// The `home_dir` fallback is there for Linux in particular: `XDG_PICTURES_DIR`
+/// comes from `~/.config/user-dirs.dirs`, which minimal installs do not ship, and
+/// failing a download over a missing config file would be absurd when `~/Pictures`
+/// is the right answer on every platform anyway.
+fn library_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let paths = app.path();
+    paths
+        .picture_dir()
+        .or_else(|_| paths.home_dir().map(|home| home.join("Pictures")))
+        .map(|dir| dir.join(LIBRARY_DIR_NAME))
+        .map_err(|e| format!("could not locate the Pictures directory: {}", e))
+}
+
+fn resolve_target_dir(app: &AppHandle, target: SaveTarget) -> Result<PathBuf, String> {
     match target {
-        SaveTarget::Library => paths
-            .picture_dir()
-            .map(|dir| dir.join("WallDesk"))
-            .map_err(|e| format!("could not locate the Pictures directory: {}", e)),
-        SaveTarget::Downloads => paths
+        SaveTarget::Library => library_dir(app),
+        SaveTarget::Downloads => app
+            .path()
             .download_dir()
             .map_err(|e| format!("could not locate the Downloads directory: {}", e)),
     }

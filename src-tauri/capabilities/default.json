@@ -21,12 +21,21 @@
     "fs:allow-app-write",
     "fs:allow-app-read",
     "fs:allow-create",
+    "fs:allow-stat",
+    "fs:allow-exists",
+    "fs:allow-remove",
     "fs:scope",
     {
       "identifier": "fs:scope",
       "allow": [
         {
           "path": "*"
+        },
+        {
+          "path": "$DOWNLOAD/**"
+        },
+        {
+          "path": "$PICTURE/WallDesk/**"
         }
       ]
     },

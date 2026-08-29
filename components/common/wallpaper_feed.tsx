@@ -3,7 +3,9 @@
 import { ImageOff, TriangleAlert } from "lucide-react"
 
 import type { WallpaperFeed } from "@/lib/use_wallpaper_feed"
+import { useIsOffline } from "@/lib/offline"
 import { Button } from "@/components/ui/button"
+import { OfflineNotice } from "./offline"
 import { WallpaperGrid } from "./wallpaper_grid"
 
 /**
@@ -15,13 +17,25 @@ export function WallpaperFeedView({
   feed,
   emptyMessage = "Nothing matched.",
   emptyHint,
+  offlineMessage = "Browsing needs a connection. Wallpapers you've already downloaded are still available.",
 }: {
   feed: WallpaperFeed
   emptyMessage?: string
   emptyHint?: string
+  /** What this particular surface cannot do offline. */
+  offlineMessage?: string
 }) {
   const { wallpapers, loading, initialLoading, hasMore, errors, sentinelRef } = feed
   const isEmpty = !loading && !initialLoading && wallpapers.length === 0
+  const offline = useIsOffline()
+
+  // Every browse surface routes through here, so this one branch is what puts the
+  // whole catalogue behind the connection. Results already on screen go too: their
+  // thumbnails are remote URLs, so scrolling an offline grid would only produce
+  // broken images. `useWallpaperFeed` has already stopped requesting by this point.
+  if (offline) {
+    return <OfflineNotice message={offlineMessage} />
+  }
 
   return (
     <>

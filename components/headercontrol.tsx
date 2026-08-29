@@ -69,7 +69,7 @@ const Header = ({ children }: LayoutProps) => {
 
   const WindowsTitleBar = () => (
     <div
-      className="fixed top-0 left-0 right-0 h-8 bg-background z-40 flex items-center justify-between pl-2"
+      className="fixed top-0 left-0 right-0 h-8  z-40 flex items-center justify-between pl-2"
       onMouseDown={handleMouseDown}
     >
       <div className="flex items-center space-x-2">
@@ -78,7 +78,7 @@ const Header = ({ children }: LayoutProps) => {
         </div>
         <span className="text-xs text-foreground select-none">{appTitle}</span> */}
       </div>
-      <div className="flex items-center control-buttons">
+      <div className="flex items-center control-buttons bg-background rounded-lg">
         <button
           onClick={handleMinimize}
           className="w-12 h-8 hover:bg-muted flex items-center justify-center group transition-colors"
@@ -181,9 +181,18 @@ const Header = ({ children }: LayoutProps) => {
       {os === "macos" && <MacOSTitleBar />}
       {os === "linux" && <LinuxTitleBar />}
       <Sidebar>
+        {/* `data-page-content` marks the page's own content, as distinct from
+            the shell around it. Nothing reads it at runtime — the cross-fade
+            animates the wrapper PageTransitionProvider renders inside here — but
+            it is the handle for picking the page out of the shell.
 
-        <main className={`flex-1 overflow-y-auto mt-3`}>{children}</main>
-
+            No `overflow` here: the scroll container is the element Sidebar
+            marks with `data-scroll-container`, and the infinite-scroll observer
+            uses that as its root. A second scroller nested inside it would move
+            the content without the observer ever seeing it. */}
+        <main data-page-content className="mt-1">
+          {children}
+        </main>
       </Sidebar>
     </div>
   )

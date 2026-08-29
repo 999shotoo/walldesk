@@ -3,7 +3,9 @@
 
 import { convertFileSrc, invoke } from "@tauri-apps/api/core"
 import { useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+// Not next/navigation's router: `auto` mode only intercepts link clicks, so a
+// programmatic push would skip the cross-fade and jump. This one runs it.
+import { useTransitionRouter } from "next-transition-router"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -28,7 +30,7 @@ type WallpaperInfo = {
 }
 
 export default function Home_SearchCard() {
-  const router = useRouter()
+  const router = useTransitionRouter()
   const [info, setInfo] = useState<WallpaperInfo | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [imgLoaded, setImgLoaded] = useState<boolean>(false)

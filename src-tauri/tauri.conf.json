@@ -27,6 +27,7 @@
       {
         "label": "splashscreen",
         "url": "/splashscreen",
+        "visible": false,
         "decorations": false,
         "resizable": false,
         "height": 600,
