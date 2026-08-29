@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# private release notes (contains the real updater signing password)
+RELEASING.md
+
 # next.js
 /.next/
 /out/

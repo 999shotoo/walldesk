@@ -71,6 +71,19 @@ export function toastInfo(title: string, description?: string): string {
 }
 
 /**
+ * Something needs attention but isn't an error — e.g. an update available.
+ * Longer timeout than info so the user has time to act.
+ */
+export function toastWarning(title: string, description?: string): string {
+  return toast.add({
+    type: "warning",
+    title,
+    description,
+    timeout: TIMEOUTS.undo, // long enough to read and act
+  })
+}
+
+/**
  * Something failed. `title` says what, in the app's own words; the thrown value
  * becomes the description, since it is the only place the real reason lives.
  */

@@ -1,8 +1,10 @@
 mod wallpaper;
-use std::sync::Mutex;
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tauri::async_runtime::spawn;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_updater::UpdaterExt;
 use tokio::time::{sleep, Duration};
 
 /// Safety net for the splash handoff. If the main window's webview never reports
@@ -38,6 +40,28 @@ struct SetupState {
     pending_reveal: bool,
 }
 
+/// Result of the startup update check, shared with the frontend. The check runs
+/// in the background during the splash; `get_update_status` waits for it to
+/// settle so the main window never guesses.
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateState {
+    /// True once the check has settled (success, failure, or timeout).
+    checked: bool,
+    /// An update newer than the running build is available.
+    available: bool,
+    /// The version offered, when `available` is true.
+    version: Option<String>,
+}
+
+/// Emitted on `update://progress` while the update downloads.
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateProgress {
+    downloaded: u64,
+    total: Option<u64>,
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -52,6 +76,11 @@ pub fn run() {
             splash_shown_at: None,
             pending_reveal: false,
         }))
+        .manage(Arc::new(Mutex::new(UpdateState {
+            checked: false,
+            available: false,
+            version: None,
+        })))
         .invoke_handler(tauri::generate_handler![
             wallpaper::get_wallpaper,
             wallpaper::get_wallpaper_info,
@@ -60,9 +89,16 @@ pub fn run() {
             wallpaper::set_wallpaper,
             wallpaper::download_and_set_wallpaper,
             set_complete,
-            splash_ready
+            splash_ready,
+            get_update_status,
+            install_update
         ])
         .setup(|app| {
+            // The updater plugin is desktop-only; it re-exports nothing usable on
+            // mobile, so keep it out of that binary.
+            #[cfg(desktop)]
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -265,10 +301,18 @@ async fn set_complete(
 /// the first download — so report ready immediately and let the frontend's own
 /// readiness decide when the window appears.
 ///
-/// This is where an update check belongs when there is one: do the work, then
-/// report `backend`. `SPLASH_MIN_VISIBLE` already keeps the splash up for a few
-/// seconds, so anything that finishes inside that budget costs nothing at launch.
+/// The update check runs while the splash is on screen: `SPLASH_MIN_VISIBLE`
+/// already keeps the splash up for a few seconds, so anything that finishes
+/// inside that budget costs nothing at launch. The check is fire-and-forget —
+/// it never delays the handoff, and its result is read later via
+/// `get_update_status`.
 async fn setup(app: AppHandle) -> Result<(), ()> {
+    let check_app = app.clone();
+    let check_state = app.state::<Arc<Mutex<UpdateState>>>().inner().clone();
+    spawn(async move {
+        run_update_check(check_app, check_state).await;
+    });
+
     set_complete(
         app.clone(),
         app.state::<Mutex<SetupState>>(),
@@ -276,4 +320,103 @@ async fn setup(app: AppHandle) -> Result<(), ()> {
     )
     .await?;
     Ok(())
+}
+
+/// Check for an update and record the outcome in `UpdateState`. Runs in the
+/// background during the splash; failures are logged, not fatal.
+async fn run_update_check(app: AppHandle, state: Arc<Mutex<UpdateState>>) {
+    let result = async {
+        let updater = app.updater()?;
+        updater.check().await
+    }
+    .await;
+    let mut guard = match state.lock() {
+        Ok(g) => g,
+        Err(e) => {
+            eprintln!("failed to lock update state: {}", e);
+            return;
+        }
+    };
+    guard.checked = true;
+    match result {
+        Ok(Some(update)) => {
+            eprintln!("update available: v{}", update.version);
+            guard.available = true;
+            guard.version = Some(update.version.to_string());
+        }
+        Ok(None) => {
+            eprintln!("app is up to date");
+        }
+        Err(e) => {
+            eprintln!("update check failed: {}", e);
+        }
+    }
+}
+
+/// Return whether an update is available, waiting for the splash-time check to
+/// settle if it has not done so yet.
+#[tauri::command]
+async fn get_update_status(
+    state: State<'_, Arc<Mutex<UpdateState>>>,
+) -> Result<UpdateState, ()> {
+    // Wait up to STARTUP_TIMEOUT for the background check to finish so a slow
+    // network still yields a definitive answer rather than a false "no update".
+    let deadline = Instant::now() + STARTUP_TIMEOUT;
+    loop {
+        {
+            let checked = state.lock().map(|g| g.checked).unwrap_or(true);
+            if checked || Instant::now() >= deadline {
+                break;
+            }
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+
+    Ok(state
+        .lock()
+        .map(|g| UpdateState {
+            checked: g.checked,
+            available: g.available,
+            version: g.version.clone(),
+        })
+        .unwrap_or(UpdateState {
+            checked: true,
+            available: false,
+            version: None,
+        }))
+}
+
+/// Download and install the pending update, then restart the app. Emits
+/// `update://progress` events (of shape `UpdateProgress`) while downloading.
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<(), String> {
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    let update = updater.check().await.map_err(|e| e.to_string())?;
+    let update = match update {
+        Some(u) => u,
+        None => return Err("no update available".into()),
+    };
+
+    let downloaded = std::sync::atomic::AtomicU64::new(0);
+    let progress_app = app.clone();
+    update
+        .download_and_install(
+            move |chunk_length, content_length| {
+                downloaded.fetch_add(chunk_length as u64, Ordering::Relaxed);
+                let _ = progress_app.emit(
+                    "update://progress",
+                    UpdateProgress {
+                        downloaded: downloaded.load(Ordering::Relaxed),
+                        total: content_length,
+                    },
+                );
+            },
+            || {},
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    eprintln!("update installed, restarting");
+    // restarts the app, diverges
+    app.restart()
 }

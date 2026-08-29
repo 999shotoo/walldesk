@@ -35,4 +35,6 @@ tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros", "time"] }
 tauri-plugin-store = "2"
 # `stream` exposes reqwest's `bytes_stream()` so downloads can report progress.
 tauri-plugin-http = { version = "2", features = ["stream"] }
+# Self-hosted auto-updates over GitHub Releases.
+tauri-plugin-updater = "2"
 futures-util = "0.3"
