@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import ShortcutBlocker from "@/components/shortcut-blocker";
+import { AppContextMenu } from "@/components/common/app_context_menu";
 import { PALETTE_BOOTSTRAP_SCRIPT } from "@/lib/theme";
 
 
@@ -51,6 +52,7 @@ export default async function RootLayout({
           // switch rather than snapping.
         >
             <ShortcutBlocker />
+            <AppContextMenu />
             {children}
         </ThemeProvider>
       </body>

@@ -1,8 +1,13 @@
 name: Release
 
-# Build signed installers on Windows, Linux and macOS and attach them to a
-# GitHub Release. Triggered by a version tag (`v1.2.3`), which is also what
-# makes the updater's `latest.json` point at the new artifacts.
+# Build a signed Windows installer and attach it to a GitHub Release.
+# Triggered by a version tag (`v1.2.3`), which is also what makes the updater's
+# `latest.json` point at the new artifact.
+#
+# ── Release scope ─────────────────────────────────────────────────────────────
+# Windows is the only supported platform for now, so only the `windows-latest`
+# matrix line is active. Full detail on how to restore a platform (and the
+# commands they each map to) is commented out below.
 on:
   push:
     tags:
@@ -17,24 +22,33 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest
-            args: --target aarch64-apple-darwin
-          - platform: macos-latest
-            args: --target x86_64-apple-darwin
-          - platform: ubuntu-22.04
-            args: ""
+          # ── Windows (active) ─────────────────────────────────────────────────
           - platform: windows-latest
             args: ""
+          # ── macOS (paused) ──────────────────────────────────────────────────
+          # Restore by uncommenting these two lines and the `targets` fed to
+          # `dtolnay/rust-toolchain` below. Needs `tauri.conf.json` bundle icons
+          # to include `icons/icon.icns` again.
+          # - platform: macos-latest
+          #   args: --target aarch64-apple-darwin
+          # - platform: macos-latest
+          #   args: --target x86_64-apple-darwin
+          # ── Linux (paused) ──────────────────────────────────────────────────
+          # Restore by uncommenting these lines and the "Install Linux
+          # dependencies" step below.
+          # - platform: ubuntu-22.04
+          #   args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      # ── Linux deps (paused — only needed when the ubuntu line is active) ────
+      # - name: Install Linux dependencies
+      #   if: matrix.platform == 'ubuntu-22.04'
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -42,9 +56,11 @@ jobs:
           node-version: 22
           cache: npm
 
+      # Windows builds for the host platform, so no extra toolchain targets are
+      # needed. If macOS is ever restored, feed it the two Apple targets:
+      #   with:
+      #     targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
