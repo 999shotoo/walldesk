@@ -75,9 +75,11 @@ export default function SplashscreenPage() {
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
           <span className="flex items-center gap-2 font-medium">
-            <span className="w-7 h-7 bg-primary rounded-xl flex items-center justify-center">
-              <span className="w-3 h-3 bg-primary-foreground rounded-full" />
-            </span>
+            <img
+              src="/icon.png"
+              alt=""
+              className="h-7 w-7 rounded-xl object-cover"
+            />
             WallDesk
           </span>
         </div>
