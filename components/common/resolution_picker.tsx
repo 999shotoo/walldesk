@@ -52,7 +52,7 @@ function Chip({
       title={title}
       aria-pressed={active}
       className={cn(
-        "rounded-md px-2 py-1.5 text-center font-mono text-xs tabular-nums transition-colors",
+        "rounded-md px-2 py-1.5 text-center font-mono text-xs tabular-nums transition-[background-color,color,box-shadow,transform] duration-150 ease-out active:scale-95",
         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
         "disabled:pointer-events-none disabled:opacity-40",
         active

@@ -27,8 +27,6 @@ export const usePalette = create<PaletteState>((set, get) => ({
   hydrated: false,
 
   hydrate: () => {
-    if (get().hydrated) return
-
     let stored: string | null = null
     try {
       stored = window.localStorage.getItem(PALETTE_STORAGE_KEY)
@@ -46,8 +44,18 @@ export const usePalette = create<PaletteState>((set, get) => ({
         ? fromDom
         : DEFAULT_PALETTE
 
+    // Always re-apply the attribute — next-themes' hydration effect wipes
+    // unknown data-* attributes, so it may have been stripped after the first
+    // hydrate() call (e.g. from AppBoot). The store's `hydrated` flag only
+    // gates state update, not the DOM write.
     document.documentElement.setAttribute(PALETTE_ATTRIBUTE, resolved)
-    set({ palette: resolved, hydrated: true })
+
+    if (!get().hydrated) {
+      set({ palette: resolved, hydrated: true })
+    } else if (get().palette !== resolved) {
+      // Palette changed externally (e.g. storage event) — sync store.
+      set({ palette: resolved })
+    }
   },
 
   setPalette: (palette) => {

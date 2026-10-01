@@ -13,7 +13,6 @@ import {
   SORT_OPTIONS,
   TOP_RANGES,
   TOP_SORT,
-  TRENDING,
 } from "@/lib/constant"
 import {
   formatResolution,
@@ -44,10 +43,11 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 
-// A fresh search opens on trending rather than newest, so the page has something
-// worth looking at before anything is typed.
-const DEFAULT_SORT = TRENDING.sorting
-const DEFAULT_RANGE = TRENDING.topRange
+// A fresh search opens on Trending rather than Relevance, so the page shows
+// what's popular this week by default. Users can optionally switch to
+// "Relevance" to see all matches without a time window.
+const DEFAULT_SORT = "toplist"
+const DEFAULT_RANGE = "1y"
 
 function labelFor(
   options: readonly { value: string; label: string }[],
@@ -64,8 +64,8 @@ function SearchView() {
   const [input, setInput] = useState(urlQuery)
   const [query, setQuery] = useState(urlQuery)
   const [categories, setCategories] = useState("111")
-  const [sorting, setSorting] = useState(DEFAULT_SORT)
-  const [topRange, setTopRange] = useState(DEFAULT_RANGE)
+  const [sorting, setSorting] = useState<string>(DEFAULT_SORT)
+  const [topRange, setTopRange] = useState<string>(DEFAULT_RANGE)
   const [orientation, setOrientation] = useState<string>(ANY)
   const [color, setColor] = useState<string>(ANY)
   const offline = useIsOffline()
@@ -127,7 +127,7 @@ function SearchView() {
     sorting !== DEFAULT_SORT ||
     // Only counts while the window is actually in play — and while its control is
     // on screen for the Clear button to visibly undo.
-    (sorting === TOP_SORT && topRange !== DEFAULT_RANGE) ||
+    (sorting === (TOP_SORT as string) && topRange !== DEFAULT_RANGE) ||
     orientation !== ANY ||
     color !== ANY ||
     // Compared against what Settings holds, not against the app's default: this

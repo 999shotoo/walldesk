@@ -18,6 +18,7 @@ const STORE_FILE = "settings.json"
 const FIT_MODE_KEY = "fitMode"
 const WALLHAVEN_API_KEY = "wallhavenApiKey"
 const SMOOTH_SCROLL_KEY = "smoothScroll"
+const IMAGE_MOTION_KEY = "imageMotion"
 /**
  * One key for the whole filter rather than four.
  *
@@ -37,6 +38,7 @@ const RESOLUTION_KEY = "resolution"
  * app, where the native scroll is what every other window does.
  */
 const DEFAULT_SMOOTH_SCROLL = false
+const DEFAULT_IMAGE_MOTION = true
 
 /**
  * Deferred for the same reason as the favorites store: the plugin only exists
@@ -60,6 +62,8 @@ type SettingsState = {
   wallhavenApiKey: string
   /** Whether Lenis drives the main scroller. See `DEFAULT_SMOOTH_SCROLL`. */
   smoothScroll: boolean
+  /** Whether image cards and thumbnail placeholders use animated transitions. */
+  imageMotion: boolean
   /**
    * The resolution filter every browse surface starts from.
    *
@@ -72,6 +76,7 @@ type SettingsState = {
   setFitMode: (mode: FitMode) => Promise<void>
   setWallhavenApiKey: (key: string) => Promise<void>
   setSmoothScroll: (enabled: boolean) => Promise<void>
+  setImageMotion: (enabled: boolean) => Promise<void>
   setResolution: (filter: ResolutionFilter) => Promise<void>
 }
 
@@ -82,6 +87,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   fitMode: DEFAULT_FIT_MODE,
   wallhavenApiKey: "",
   smoothScroll: DEFAULT_SMOOTH_SCROLL,
+  imageMotion: DEFAULT_IMAGE_MOTION,
   resolution: DEFAULT_RESOLUTION_FILTER,
   hydrated: false,
 
@@ -93,17 +99,25 @@ export const useSettings = create<SettingsState>((set, get) => ({
         const store = await getStore()
         // Read them in one go; the feed waits on `hydrated` before its first
         // request so it doesn't fire anonymously and then refetch with the key.
-        const [savedFitMode, savedKey, savedSmoothScroll, savedResolution] =
+        const [
+          savedFitMode,
+          savedKey,
+          savedSmoothScroll,
+          savedImageMotion,
+          savedResolution,
+        ] =
           await Promise.all([
             store.get<FitMode>(FIT_MODE_KEY),
             store.get<string>(WALLHAVEN_API_KEY),
             store.get<boolean>(SMOOTH_SCROLL_KEY),
+            store.get<boolean>(IMAGE_MOTION_KEY),
             store.get<unknown>(RESOLUTION_KEY),
           ])
         set({
           fitMode: savedFitMode ?? DEFAULT_FIT_MODE,
           wallhavenApiKey: savedKey ?? "",
           smoothScroll: savedSmoothScroll ?? DEFAULT_SMOOTH_SCROLL,
+          imageMotion: savedImageMotion ?? DEFAULT_IMAGE_MOTION,
           // Coerced rather than trusted: `settings.json` is a file on the user's
           // disk, so anything could be in there. An absent key coerces to the
           // default, which is also what a first run hits.
@@ -156,6 +170,17 @@ export const useSettings = create<SettingsState>((set, get) => ({
       await store.save()
     } catch (error: unknown) {
       toastError("Your smooth scrolling preference could not be saved", error)
+    }
+  },
+
+  setImageMotion: async (enabled) => {
+    set({ imageMotion: enabled })
+    try {
+      const store = await getStore()
+      await store.set(IMAGE_MOTION_KEY, enabled)
+      await store.save()
+    } catch (error: unknown) {
+      toastError("Your image animation preference could not be saved", error)
     }
   },
 

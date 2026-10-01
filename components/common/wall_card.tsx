@@ -3,7 +3,7 @@
 import Image from "next/image";
 // Not next/link — see the note in components/sidebar.tsx.
 import { Link } from "next-transition-router";
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Check, Download, Heart, Loader2, Monitor } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -30,7 +30,7 @@ interface WallpaperCardProps {
 
 type CardAction = "download" | "set";
 
-export function WallpaperCard({
+export const WallpaperCard = memo(function WallpaperCard({
   id,
   title,
   imageurl,
@@ -107,12 +107,22 @@ export function WallpaperCard({
   );
 
   const overlayButton = cn(
-    "h-8 w-8 rounded-full bg-white/10 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100",
+    "h-8 w-8 rounded-full bg-white/10 text-white opacity-0 backdrop-blur-sm transition-opacity duration-300 ease-out group-hover:opacity-100",
     "hover:bg-white/20 hover:text-white disabled:opacity-100"
   );
 
   return (
-    <div className="overflow-hidden rounded-lg cursor-pointer group relative">
+    // The data-wp-* attributes let the app-wide context menu rebuild this
+    // wallpaper from the DOM, so a right-click can offer the same set/download
+    // actions as these buttons instead of web gestures like copying a URL.
+    <div
+      className="wallpaper-card overflow-hidden rounded-lg cursor-pointer group relative"
+      data-wp-id={id}
+      data-wp-provider={provider}
+      data-wp-title={title}
+      data-wp-image={imageurl}
+      data-wp-thumb={thumbnail}
+    >
       <Link href={wallpaperHref({ id, provider })}>
         <Image
           src={thumbnail}
@@ -124,11 +134,12 @@ export function WallpaperCard({
           width={THUMBNAIL_WIDTH}
           height={THUMBNAIL_HEIGHT}
           loading={eager ? "eager" : "lazy"}
-          className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-110 rounded-lg"
+          sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, 50vw"
+          className="aspect-video w-full rounded-lg object-cover transition-transform duration-500 group-hover:scale-110"
         />
       </Link>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 right-0 p-4 text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100" />
+      <div className="pointer-events-none absolute right-0 bottom-0 left-0 p-4 text-white opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100">
         <h3 className="text-lg font-semibold">{title}</h3>
       </div>
       {/* Heart deliberately last, i.e. rightmost. It's the one button that stays
@@ -187,9 +198,9 @@ export function WallpaperCard({
           </span>
         </Button>
       </div>
-      <div className="absolute left-2 top-2 rounded-full bg-white/10 px-2 py-1 text-xs text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 pointer-events-none">
+      <div className="pointer-events-none absolute top-2 left-2 rounded-full bg-white/10 px-2 py-1 text-xs text-white opacity-0 backdrop-blur-sm transition-opacity duration-300 ease-out group-hover:opacity-100">
         {provider}
       </div>
     </div>
   );
-}
+});

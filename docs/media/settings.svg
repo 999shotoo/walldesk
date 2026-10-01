@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">WallDesk settings placeholder</title><desc id="desc">Placeholder for the WallDesk settings screen.</desc>
+  <rect width="1200" height="675" fill="#171717"/><rect x="32" y="32" width="220" height="611" rx="18" fill="#242424"/><rect x="290" y="32" width="878" height="82" rx="18" fill="#242424"/><rect x="290" y="142" width="878" height="469" rx="18" fill="#202020"/><rect x="326" y="178" width="806" height="74" rx="12" fill="#343434"/><rect x="326" y="274" width="806" height="74" rx="12" fill="#343434"/><rect x="326" y="370" width="806" height="74" rx="12" fill="#343434"/><rect x="326" y="466" width="806" height="74" rx="12" fill="#343434"/><text x="729" y="92" text-anchor="middle" fill="#a3a3a3" font-family="sans-serif" font-size="26">SETTINGS PLACEHOLDER</text>
+</svg>

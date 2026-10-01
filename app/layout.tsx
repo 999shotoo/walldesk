@@ -51,6 +51,10 @@ export default async function RootLayout({
           // globals.css instead, so light/dark cross-fades like the palette
           // switch rather than snapping.
         >
+                        {/* Blocks webview-native shortcuts (Ctrl+R reload, F5, devtools)
+                that have no place in a desktop window. The context menu's
+                clipboard actions use `navigator.clipboard` directly, so they
+                still work despite the copy/cut event suppression here. */}
             <ShortcutBlocker />
             <AppContextMenu />
             {children}

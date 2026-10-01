@@ -58,7 +58,7 @@ export default function Sidebar({
         : pathname.startsWith(item.href);
 
     const base =
-      'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200';
+      'w-9 h-9 rounded-xl flex items-center justify-center transition-[background-color,color,box-shadow,transform,opacity] duration-200 ease-out active:scale-90';
 
     // Greyed out and inert rather than hidden: a nav that loses items when the
     // connection drops reads as the app breaking. This reads as the app knowing.
@@ -103,8 +103,8 @@ export default function Sidebar({
       <div className="w-14 bg-card border-border/70 shadow-sm rounded-xl border z-50 m-2 flex flex-col items-center gap-3 py-2 shrink-0">
         {/* Logo at top */}
         <Link href="/" className="w-full flex items-center justify-center pt-2" aria-label="WallDesk home">
-          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center">
-            <div className="w-6 h-6 bg-primary-foreground rounded-full" />
+          <div className="group w-9 h-9 bg-primary rounded-xl flex items-center justify-center transition-transform duration-300 ease-out hover:rotate-6 hover:scale-105 active:scale-90">
+            <div className="w-6 h-6 bg-primary-foreground rounded-full transition-transform duration-300 group-hover:scale-90" />
           </div>
         </Link>
 

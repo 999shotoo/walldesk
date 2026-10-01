@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">WallDesk demo video placeholder</title><desc id="desc">Placeholder for a WallDesk product demo video.</desc>
+  <rect width="1200" height="675" fill="#171717"/><rect x="56" y="56" width="1088" height="563" rx="22" fill="#242424"/><circle cx="600" cy="320" r="74" fill="#555"/><path d="M580 278v84l76-42z" fill="#171717"/><text x="600" y="500" text-anchor="middle" fill="#a3a3a3" font-family="sans-serif" font-size="30">WALLDESK DEMO VIDEO</text><text x="600" y="545" text-anchor="middle" fill="#737373" font-family="sans-serif" font-size="20">Replace with docs/media/walldesk-demo.mp4</text>
+</svg>

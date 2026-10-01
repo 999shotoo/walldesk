@@ -58,7 +58,6 @@ export function WallpaperFeedView({
       <WallpaperGrid
         wallpapers={wallpapers}
         loading={loading || initialLoading}
-        skeletonCount={initialLoading ? 12 : 6}
       />
 
       {isEmpty && (

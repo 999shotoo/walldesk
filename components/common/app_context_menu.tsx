@@ -5,16 +5,17 @@ import { createPortal } from "react-dom"
 import {
   ClipboardPaste,
   Copy,
-  Crop,
-  ExternalLink,
-  FileDown,
-  RefreshCw,
+  Download,
+  Monitor,
   Scissors,
   TextCursorInput,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { toastSuccess, toastInfo, toastError } from "@/lib/toast"
+import { applyWallpaper, parentDir, saveWallpaperCopy } from "@/lib/downloads"
+import { useSettings } from "@/lib/settings"
+import { FIT_MODE_LABELS } from "@/lib/wallpaper"
 
 /**
  * A snapshot of what was under the cursor when the menu opened.
@@ -25,41 +26,48 @@ import { toastSuccess, toastInfo, toastError } from "@/lib/toast"
  * most (an image swapped for a grid of spinners).
  */
 type ContextTarget = {
-  /** `INPUT` / `TEXTAREA` / `[contenteditable=true]` — editable fields get the
-   *  clipboard trio (cut / paste / select all), everything else doesn't. */
-  editable: boolean
-  /** The focused editable element, when there is one. */
+  /** An `INPUT` / `TEXTAREA` — editable fields get the clipboard trio. */
   input: HTMLInputElement | HTMLTextAreaElement | null
-  /** The source URL of an `<img>` under the cursor, when there is one. */
-  imageUrl: string | null
-  /** The href of a link under the cursor, when there is one. */
-  linkUrl: string | null
+  /** The wallpaper rendered under the cursor, when there is one. */
+  wallpaper: CombinedWallpaper | null
   /** Whatever text is currently selected on the page. */
   selection: string
 }
 
+/**
+ * Rebuild a wallpaper from the data attributes a browse card carries.
+ *
+ * This is what lets the context menu offer the app's *own* actions — set as
+ * wallpaper, download — instead of web gestures like copying a URL. `null` when
+ * the cursor is not over a card, so those actions simply don't appear.
+ */
+function wallpaperFromCard(card: HTMLElement | null): CombinedWallpaper | null {
+  if (!card) return null
+  const id = card.dataset.wpId
+  const imageurl = card.dataset.wpImage
+  if (!id || !imageurl) return null
+  return {
+    id,
+    provider: card.dataset.wpProvider ?? "unknown",
+    title: card.dataset.wpTitle ?? id,
+    thumbnail: card.dataset.wpThumb ?? imageurl,
+    imageurl,
+    colors: [],
+    type: "image",
+  }
+}
+
 function inspectTarget(target: EventTarget | null): ContextTarget {
   const el = target as HTMLElement | null
-
-  const closest = (el: HTMLElement | null, sel: string): HTMLElement | null =>
-    el?.closest?.(sel) ?? null
-
-  const image = closest(el, "img")
-  const link = closest(el, "a")
-  const input = el?.tagName === "INPUT" || el?.tagName === "TEXTAREA"
-    ? (el as HTMLInputElement | HTMLTextAreaElement)
-    : el?.isContentEditable
-      ? null
+  const input =
+    el?.tagName === "INPUT" || el?.tagName === "TEXTAREA"
+      ? (el as HTMLInputElement | HTMLTextAreaElement)
       : null
-  // A contenteditable needs its own handling path, but for the snapshot treat
-  // it as editable with no native input node.
-  const editable = Boolean(input) || Boolean(el?.isContentEditable)
+  const card = el?.closest?.("[data-wp-id]") as HTMLElement | null
 
   return {
-    editable,
     input,
-    imageUrl: (image as HTMLImageElement)?.currentSrc || image?.getAttribute("src") || null,
-    linkUrl: link?.getAttribute("href") || null,
+    wallpaper: wallpaperFromCard(card),
     selection: window.getSelection()?.toString() ?? "",
   }
 }
@@ -70,12 +78,22 @@ type MenuState = { open: boolean; x: number; y: number } | null
  * Replacement for the native right-click menu.
  *
  * Registers a `contextmenu` listener at document level that suppresses the
- * webview's default menu and shows this one at the cursor instead. Items are
- * chosen from what was clicked — an image offers "Copy image URL", an editable
- * field offers cut / paste / select all, and a plain click offers copy /
- * refresh. Copying goes through `navigator.clipboard` so it is not affected by
- * the `ShortcutBlocker`, which suppresses the native `copy`/`cut` events
- * outside editable fields.
+ * webview's default menu — in a desktop app that menu is browser chrome nothing
+ * applies to — and shows this one at the cursor instead. Only the actions that
+ * mean something here are offered:
+ *
+ *   - an editable field gets cut / paste / select all, run through
+ *     `navigator.clipboard` so it is not caught by the `ShortcutBlocker`, which
+ *     suppresses the native `copy`/`cut` events outside editable fields;
+ *   - a wallpaper card gets set-as-wallpaper / download, through the same
+ *     backend pipeline as the card's own hover buttons.
+ *
+ * Web-shaped actions — copy link, copy image URL, open link in a browser — are
+ * deliberately absent: there are no links to copy in a wallpaper app.
+ *
+ * Nothing under the cursor and no selection renders no menu at all, so a
+ * right-click on blank space stays silent instead of popping a menu with one
+ * helpful-for-nobody item.
  */
 export function AppContextMenu() {
   const [menu, setMenu] = useState<MenuState>(null)
@@ -83,8 +101,6 @@ export function AppContextMenu() {
   // Measured after paint so the menu can be clamped to the viewport.
   const [size, setSize] = useState({ width: 0, height: 0 })
   const menuRef = useRef<HTMLDivElement | null>(null)
-  // The element that had focus when the menu opened, so actions can act on it.
-  const lastFocused = useRef<HTMLElement | null>(null)
   const menuSignal = useRef(0)
 
   // Only render the portal when window is defined (client-side)
@@ -92,52 +108,26 @@ export function AppContextMenu() {
     return null
   }
 
-  /** Determine which items (if any) belong to the current target. */
-  const menuItems = buildMenuItems(target)
-
-  // A spacer row between groups of actions.
-  const Separator = <div className="-mx-1 my-1 h-px bg-border" />
-
-  const items = menuItems.flatMap((group, groupIndex) => {
-    const rows = group.map((item) => (
-      <button
-        key={item.key}
-        role="menuitem"
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation()
-          close()
-          item.action()
-        }}
-        className={cn(
-          "group/context-menu-item relative flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none",
-          "focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground",
-          item.destructive && "text-destructive"
-        )}
-      >
-        <span className="pointer-events-none shrink-0 [&_svg]:size-4">{item.icon}</span>
-        <span className="flex-1 text-left">{item.label}</span>
-        {item.shortcut && (
-          <span className="ml-auto pl-4 text-xs tracking-widest text-muted-foreground">
-            {item.shortcut}
-          </span>
-        )}
-      </button>
-    ))
-    return rows.length === 0 ? [] : [...rows, groupIndex < menuItems.length - 1 ? Separator : null]
-  })
+  const menuItems = menu?.open ? buildMenuItems(target) : []
 
   const close = useCallback(() => {
     setMenu(null)
     setTarget(null)
   }, [])
 
-  // Global right-click: suppress the native menu, show ours.
+  // Global right-click: suppress the native menu, show ours when the cursor is
+  // over something actionable.
   useEffect(() => {
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault()
-      lastFocused.current = document.activeElement as HTMLElement | null
-      setTarget(inspectTarget(e.target))
+      const target = inspectTarget(e.target)
+      if (buildMenuItems(target).length === 0) {
+        // Nothing useful under the cursor — don't open an empty menu.
+        setMenu(null)
+        setTarget(null)
+        return
+      }
+      setTarget(target)
       setMenu({ open: true, x: e.clientX, y: e.clientY })
       // Bump so the size-measure effect below re-runs for this new menu.
       menuSignal.current += 1
@@ -146,60 +136,123 @@ export function AppContextMenu() {
     return () => document.removeEventListener("contextmenu", onContextMenu)
   }, [])
 
-  // Measure the menu once it is open so it stays inside the window.
+  // Measure the menu once it is open so it stays inside the window, and hand
+  // keyboard focus to the first item — a menu that opens without a focused
+  // letter can only be dismissed, not used with the keyboard.
   useLayoutEffect(() => {
     if (!menu?.open || !menuRef.current) return
     setSize({
       width: menuRef.current.offsetWidth,
       height: menuRef.current.offsetHeight,
     })
+    menuRef.current
+      .querySelector<HTMLButtonElement>('[role="menuitem"]')
+      ?.focus({ preventScroll: true })
   }, [menu?.open, menuSignal.current]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Dismiss on outside interaction, scroll, resize, or Escape.
+  // Dismiss on outside interaction, scroll, resize, or Escape. A mousedown that
+  // lands *inside* the menu is not a reason: it is about to select an item, and
+  // closing on it would unmount the menu between the mousedown and the click, so
+  // the action would never run.
   useEffect(() => {
     if (!menu?.open) return
 
-    const closeOn = () => close()
+    const isInside = (e: Event) =>
+      e.target instanceof Node &&
+      Boolean(menuRef.current?.contains(e.target))
+
+    const closeOnOutside = (e: MouseEvent) => {
+      if (!isInside(e)) close()
+    }
+    const closeOnScroll = (e: WheelEvent) => {
+      if (!isInside(e)) close()
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close()
     }
-    window.addEventListener("mousedown", closeOn, true)
-    window.addEventListener("wheel", closeOn, true)
-    window.addEventListener("resize", closeOn)
+    window.addEventListener("mousedown", closeOnOutside, true)
+    window.addEventListener("wheel", closeOnScroll, true)
+    window.addEventListener("resize", close)
     window.addEventListener("keydown", onKey)
-    // Menu clicks select an item; a second mousedown afterwards closes it.
     return () => {
-      window.removeEventListener("mousedown", closeOn, true)
-      window.removeEventListener("wheel", closeOn, true)
-      window.removeEventListener("resize", closeOn)
+      window.removeEventListener("mousedown", closeOnOutside, true)
+      window.removeEventListener("wheel", closeOnScroll, true)
+      window.removeEventListener("resize", close)
       window.removeEventListener("keydown", onKey)
     }
   }, [menu?.open, close])
 
+  // Arrow keys move focus between the items — Enter/Space then act on the
+  // focused button, which a native `<button>` does on its own.
+  const onMenuKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return
+    e.preventDefault()
+    const buttons = Array.from(
+      menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ??
+        []
+    )
+    if (buttons.length === 0) return
+    let index = buttons.findIndex((button) => button === document.activeElement)
+    if (index === -1) {
+      index = e.key === "ArrowDown" ? -1 : 0
+    }
+    index =
+      e.key === "ArrowDown"
+        ? (index + 1) % buttons.length
+        : (index - 1 + buttons.length) % buttons.length
+    buttons[index].focus({ preventScroll: true })
+  }
+
   return createPortal(
-    <div
-      role="menu"
-      data-open={menu?.open ? "true" : undefined}
-      className="fixed inset-0 z-50"
-      onContextMenu={(e) => e.preventDefault()}
-      style={{ pointerEvents: menu?.open ? "auto" : "none" }}
-    >
+    <div className="fixed inset-0 z-50" style={{ pointerEvents: "none" }}>
       <div
         ref={menuRef}
-        role="presentation"
+        role="menu"
+        tabIndex={-1}
         data-open={menu?.open ? "true" : undefined}
-        onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={onMenuKeyDown}
         className={cn(
           "bg-popover text-popover-foreground min-w-40 origin-(--transform-origin) rounded-lg p-1 shadow-md ring-1 ring-foreground/10",
           "fixed data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
-          menu?.open ? "block" : "hidden"
+          menu?.open ? "pointer-events-auto block" : "hidden"
         )}
         style={{
           left: Math.max(4, Math.min(menu?.x ?? 0, window.innerWidth - size.width - 8)),
           top: Math.max(4, Math.min(menu?.y ?? 0, window.innerHeight - size.height - 8)),
         }}
       >
-        {items}
+        {menuItems.map((group, groupIndex) => (
+          <div key={groupIndex} className="flex flex-col">
+            {groupIndex > 0 && <div className="-mx-1 my-1 h-px bg-border" />}
+            {group.map((item) => (
+              <button
+                key={item.key}
+                role="menuitem"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  close()
+                  item.action()
+                }}
+                className={cn(
+                  "group/context-menu-item flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none",
+                  "focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground",
+                  item.destructive && "text-destructive"
+                )}
+              >
+                <span className="pointer-events-none shrink-0 [&_svg]:size-4">
+                  {item.icon}
+                </span>
+                <span className="flex-1 text-left">{item.label}</span>
+                {item.shortcut && (
+                  <span className="ml-auto pl-4 text-xs tracking-widest text-muted-foreground">
+                    {item.shortcut}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        ))}
       </div>
     </div>,
     document.body
@@ -215,55 +268,83 @@ type MenuItem = {
   action: () => void
 }
 
-/** Build actionable groups from a context target. */
+/**
+ * The actions a right-click under this target offers, grouped so a divider can
+ * be drawn between unrelated sets. Returns an empty list when nothing is
+ * actionable — the menu then stays closed.
+ */
 function buildMenuItems(target: ContextTarget | null): MenuItem[][] {
-  if (!target) return [[]]
-  const groups: MenuItem[][] = [[]]
+  if (!target) return []
+  const groups: MenuItem[][] = []
 
-  // Helper to push into the current group, starting a new one if needed.
-  const push = (item: MenuItem) => {
-    if (groups[groups.length - 1].length > 0 && item.label === "") {
-      // Separator: start a fresh group.
-      groups.push([item])
-    } else {
-      groups[groups.length - 1].push(item)
-    }
-  }
-
-  // A selected input gets the full clipboard trio.
+  // A selected input gets the clipboard trio the native menu would have offered.
   if (target.input) {
-    const hasSelection = target.input.selectionStart !== target.input.selectionEnd
-    push({ key: "copy", label: "Copy", icon: <Copy />, shortcut: "Ctrl+C", action: () => copyFromInput(target.input!) })
-    push({ key: "cut", label: "Cut", icon: <Scissors />, shortcut: "Ctrl+X", action: () => cutFromInput(target.input!) })
-    push({ key: "paste", label: "Paste", icon: <ClipboardPaste />, shortcut: "Ctrl+V", action: () => void pasteInto(target.input!) })
-    push({ key: "selectAll", label: "Select all", icon: <TextCursorInput />, shortcut: "Ctrl+A", action: () => target.input!.select() })
-    if (hasSelection) {
-      push({ key: "copy", label: "Copy", icon: <Copy />, shortcut: "Ctrl+C", action: () => copyFromInput(target.input!) }) // duplicate to show both
-    }
+    const input = target.input
+    groups.push([
+      {
+        key: "cut",
+        label: "Cut",
+        icon: <Scissors />,
+        shortcut: "Ctrl+X",
+        action: () => cutFromInput(input),
+      },
+      {
+        key: "copy",
+        label: "Copy",
+        icon: <Copy />,
+        shortcut: "Ctrl+C",
+        action: () => copyFromInput(input),
+      },
+      {
+        key: "paste",
+        label: "Paste",
+        icon: <ClipboardPaste />,
+        shortcut: "Ctrl+V",
+        action: () => void pasteInto(input),
+      },
+      {
+        key: "selectAll",
+        label: "Select all",
+        icon: <TextCursorInput />,
+        shortcut: "Ctrl+A",
+        action: () => input.select(),
+      },
+    ])
   } else if (target.selection) {
-    push({ key: "copy", label: "Copy", icon: <Copy />, shortcut: "Ctrl+C", action: () => void copySelection() })
+    // Selected text outside an input still deserves a Copy.
+    groups.push([
+      {
+        key: "copy",
+        label: "Copy",
+        icon: <Copy />,
+        shortcut: "Ctrl+C",
+        action: () => void copySelection(),
+      },
+    ])
   }
 
-  // When the cursor is over an image, carrying the URL is the useful action.
-  if (target.imageUrl) {
-    push({ key: "sep1", label: "", icon: null, action: () => {} }) // spacer
-    push({ key: "copyImage", label: "Copy image URL", icon: <Copy />, action: () => void copyText(target.imageUrl!, "Image URL copied") })
-    push({ key: "saveImage", label: "Download image", icon: <FileDown />, action: () => void downloadImage(target.imageUrl!) })
+  // A wallpaper under the cursor gets the app's two real actions, through the
+  // same backend pipeline as the card's hover buttons — the only download path
+  // that writes a tracked file rather than hoping the webview honors an
+  // `<a download>`.
+  if (target.wallpaper) {
+    const wallpaper = target.wallpaper
+    groups.push([
+      {
+        key: "set",
+        label: "Set as wallpaper",
+        icon: <Monitor />,
+        action: () => void applyFromContext(wallpaper, "set"),
+      },
+      {
+        key: "download",
+        label: "Download",
+        icon: <Download />,
+        action: () => void applyFromContext(wallpaper, "download"),
+      },
+    ])
   }
 
-  // A link under the cursor can be opened or copied.
-  if (target.linkUrl && target.linkUrl !== "#") {
-    push({ key: "sep2", label: "", icon: null, action: () => {} })
-    push({ key: "copyLink", label: "Copy link", icon: <Copy />, action: () => void copyText(target.linkUrl!, "Link copied") })
-    push({ key: "openLink", label: "Open link", icon: <ExternalLink />, action: () => void openUrl(target.linkUrl!) })
-  }
-
-  // A generic page action, always present.
-  push({ key: "sep3", label: "", icon: null, action: () => {} })
-  push({ key: "reload", label: "Refresh", icon: <RefreshCw />, shortcut: "Ctrl+R", action: () => window.location.reload() })
-
-  // Trim empty trailing groups
-  while (groups.length > 0 && groups[groups.length - 1].length === 0) groups.pop()
   return groups
 }
 
@@ -348,31 +429,32 @@ async function pasteInto(
   toastSuccess("Pasted")
 }
 
-/** Kick off a download of an image URL straight to the user's Downloads folder. */
-function downloadImage(url: string): void {
-  // The webview can't write to disk by itself in a way the app's ledger tracks —
-  // the Tauri backend owns saving. For a URL we have no wallpaper record for,
-  // fall back to a plain anchor download so the user still gets the file.
-  const a = document.createElement("a")
-  a.href = url
-  a.download = ""
-  a.rel = "noopener"
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  toastInfo("Downloading image…")
-}
+/**
+ * Set or apply a wallpaper from the menu, mirroring the two actions on the
+ * card's hover buttons so both entry points behave — and toast — identically.
+ */
+async function applyFromContext(
+  wallpaper: CombinedWallpaper,
+  action: "set" | "download"
+): Promise<void> {
+  try {
+    const fitMode = useSettings.getState().fitMode
+    const record =
+      action === "set"
+        ? await applyWallpaper(wallpaper, fitMode)
+        : await saveWallpaperCopy(wallpaper)
 
-function openUrl(url: string): void {
-  // A bare anchor would navigate the whole app; opening an external link needs
-  // to leave the webview untouched. `window.open` with `noopener` stays inside
-  // the app window's context, which is fine for display — external protocol
-  // handling (the OS browser) is a backend concern and not offered here.
-  const a = document.createElement("a")
-  a.href = url
-  a.rel = "noopener noreferrer"
-  a.target = "_blank"
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
+    if (action === "set") {
+      toastSuccess("Wallpaper applied", FIT_MODE_LABELS[fitMode])
+    } else {
+      toastSuccess(`Saved ${record.filename}`, parentDir(record.path))
+    }
+  } catch (error: unknown) {
+    toastError(
+      action === "set"
+        ? `${wallpaper.title} could not be set as your wallpaper`
+        : `${wallpaper.title} could not be downloaded`,
+      error
+    )
+  }
 }

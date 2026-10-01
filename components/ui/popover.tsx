@@ -27,11 +27,15 @@ function PopoverContent({
   >) {
   return (
     <PopoverPrimitive.Portal>
+      {/* Fixed, not the default absolute: a body-portaled popup positioned
+          absolutely is anchored to the document and stays glued to the viewport
+          when the trigger's container scrolls. See the note in select.tsx. */}
       <PopoverPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        positionMethod="fixed"
         className="isolate z-50"
       >
         <PopoverPrimitive.Popup

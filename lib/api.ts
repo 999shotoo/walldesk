@@ -125,7 +125,7 @@ const normalizeWallhaven = (item: WallhavenItem): CombinedWallpaper => ({
     id: item.id,
     provider: 'wallhaven',
     title: item.category,
-    thumbnail: item.thumbs.large,
+    thumbnail: item.thumbs.small,
     imageurl: item.path,
     width: item.dimension_x,
     height: item.dimension_y,

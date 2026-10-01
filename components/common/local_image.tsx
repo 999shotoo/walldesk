@@ -5,6 +5,7 @@ import { ImageOff } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { localImageSrc } from "@/lib/downloads"
+import { useSettings } from "@/lib/settings"
 import { Skeleton } from "@/components/ui/skeleton"
 
 type LoadState = "loading" | "ready" | "missing"
@@ -84,6 +85,7 @@ export function LocalImage({
 }) {
   const localSrc = localImageSrc(path)
   const src = localSrc ?? fallbackSrc ?? null
+  const imageMotion = useSettings((state) => state.imageMotion)
   const ref = useRef<HTMLImageElement>(null)
   const [state, setState] = useState<LoadState>(src ? "loading" : "missing")
 
@@ -211,7 +213,10 @@ export function LocalImage({
           decoding="async"
           onLoad={(event) => settle(event.currentTarget)}
           onError={() => setState("missing")}
-          className={className}
+          className={cn(
+            className,
+            imageMotion && state === "ready" && "animate-image-reveal"
+          )}
         />
       )}
 

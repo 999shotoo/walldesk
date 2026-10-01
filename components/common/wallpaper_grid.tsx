@@ -63,10 +63,15 @@ export function WallpaperGrid({
         className="flex w-auto -ml-4"
         columnClassName="pl-4 bg-clip-padding"
       >
-        {[...cards, ...skeletons].map((child, index) => (
+        {cards.map((child, index) => (
           // Masonry lays out plain children, so the vertical gap has to come
           // from a wrapper rather than the grid's `gap`.
           <div key={child.key ?? index} className="mb-4">
+            {child}
+          </div>
+        ))}
+        {skeletons.map((child) => (
+          <div key={child.key ?? "skeleton"} className="mb-4">
             {child}
           </div>
         ))}

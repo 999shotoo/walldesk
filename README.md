@@ -1,217 +1,302 @@
-# WallDesk
+<p align="center">
+  <img src="docs/media/video-preview.svg" alt="WallDesk preview" width="860">
+</p>
 
-A beautiful, feature-rich wallpaper manager for Windows that lets you browse, download, and manage wallpapers from Wallhaven (with Pexels support available but currently disabled for privacy reasons).
+<h1 align="center">WallDesk</h1>
 
-![WallDesk Screenshot](docs/screenshot-main.png) <!-- Placeholder for main UI screenshot -->
+<p align="center">
+  A polished desktop wallpaper browser and manager for Windows.
+</p>
 
-## ✨ Features
+<p align="center">
+  Discover wallpapers, save your favorites, build collections, and apply
+  everything directly to your desktop.
+</p>
 
-### 🖼️ Wallpaper Discovery
-- **Browse Wallhaven's extensive catalog** - Access millions of high-quality wallpapers
-- **Smart filtering** - Filter by categories (General/Anime/People), sorting (Trending/Newest/Favorites/etc.), color palette, and resolution
-- **Resolution-aware browsing** - Defaults to 1920x1080+ to ensure wallpapers fit your screen properly
-- **Infinite scroll** - Seamlessly browse through endless wallpaper collections
-- **Offline support** - View previously downloaded wallpapers even without internet connection
-- **Collections system** - Import and browse public Wallhaven collections by username/collection ID
+<p align="center">
+  <a href="https://github.com/999shotoo/walldesk/releases">
+    <img src="https://img.shields.io/github/v/release/999shotoo/walldesk?style=flat-square&color=6d5dfc&label=latest%20release" alt="Latest release">
+  </a>
+  <a href="https://github.com/999shotoo/walldesk/releases">
+    <img src="https://img.shields.io/github/downloads/999shotoo/walldesk/total?style=flat-square&color=2ea043&label=downloads" alt="Downloads">
+  </a>
+  <img src="https://img.shields.io/badge/platform-Windows-0078d4?style=flat-square" alt="Windows">
+  <img src="https://img.shields.io/badge/built%20with-Tauri%202-24c8db?style=flat-square" alt="Built with Tauri 2">
+</p>
 
-### 🎨 Visual Experience
-- **Multiple colour themes** - Choose from 6 carefully crafted palettes that work in both light and dark modes
-- **Theme flexibility** - Light, dark, or system-following themes
-- **Smooth scrolling** (optional) - Fluid navigation with Lenis-powered scrolling
-- **Responsive layout** - Optimized for various screen sizes and resolutions
-- **Subtle animations** - Polished micro-interactions throughout the interface
+> [!NOTE]
+> The images in this README are placeholders until final product screenshots
+> are added. Replace the files in [`docs/media/`](docs/media/) without changing
+> the README layout.
 
-### 💾 Wallpaper Management
-- **One-click apply** - Set any wallpaper as your desktop background instantly
-- **Flexible fitting options** - Choose how wallpapers scale to your screen:
-  - **Fill screen** (crop) - Fills screen, may crop edges
-  - **Fit to screen** - Shows entire image, may have bars
-  - **Stretch** - Stretches to fill (may distort)
-  - **Center** - Centers image, shows background color
-  - **Span displays** - Spans across multiple monitors
-  - **Tile** - Repeats image across desktop
-- **Smart downloading** - Automatically saves wallpapers to your `Pictures/WallDesk` folder
-- **Download tracking** - Keep track of all downloaded/applied wallpapers with timestamps
-- **File management** - Easily delete wallpapers from both the app and disk
+## What is WallDesk?
 
-### 🔧 Power User Features
-- **Wallhaven API key support** - Add your personal API key for higher rate limits and private collections
-- **Resolution presets** - Quick selection of common monitor resolutions
-- **Landscape-only filtering** - By default hides portrait-orientation wallpapers unsuitable for most monitors
-- **Colour palette filtering** - Find wallpapers that match specific colours from Wallhaven's palette
-- **Offline mode awareness** - Clear indicators when browsing requires internet vs. when local content is available
-- **Automatic updates** - Seamless background update checking with silent installation
+WallDesk is a native Tauri desktop app with a Next.js interface for browsing
+and managing wallpapers from Wallhaven. It combines a fast thumbnail feed with
+native downloads, desktop wallpaper controls, local favorites, imported
+collections, offline library access, and a customizable appearance.
 
-### 🖥️ Desktop Integration
-- **Native Windows experience** - Built with Tauri for excellent performance and native feel
-- **System tray integration** (coming soon) - Quick access from taskbar
-- **Auto-start capability** - Launch with Windows for instant wallpaper changes
-- **Low resource usage** - Efficient background operation
-- **Proper file associations** - Uses Windows-native paths and conventions
+The app is designed to feel like a focused desktop tool rather than a website
+inside a window: files are saved to your normal Pictures folder, wallpaper
+changes happen through a Rust backend, and preferences stay on your machine.
 
-## 🚀 Getting Started
+## Screenshots
 
-### Prerequisites
-- Windows 10 or later
-- No additional dependencies required
+<p align="center">
+  <img src="docs/media/home.svg" alt="WallDesk home screen" width="820">
+</p>
 
-### Installation
-1. Download the latest release from the [Releases page](https://github.com/999shotoo/walldesk/releases)
-2. Run the installer
-3. Launch WallDesk from your Start menu
+<p align="center">
+  <img src="docs/media/search.svg" alt="WallDesk search and filters" width="820">
+</p>
 
-### First Launch
-On first launch, WallDesk will:
-1. Show a brief splash screen while initializing
-2. Check for updates in the background
-3. Load popular wallpapers from Wallhaven
-4. Be ready to browse and apply wallpapers!
+<p align="center">
+  <img src="docs/media/wallpaper-detail.svg" alt="WallDesk wallpaper details" width="820">
+</p>
 
-## 📖 How to Use
+<p align="center">
+  <img src="docs/media/collections.svg" alt="WallDesk collections" width="820">
+</p>
 
-### Browsing Wallpapers
-- The home screen shows **Popular** wallpapers (Wallhaven's toplist from the past month)
-- Use the search bar at the top to find specific wallpapers
-- Click any wallpaper to view it in detail
-- Use the **Download** button to save a copy
-- Use the **Set as Wallpaper** button to apply it immediately
+<p align="center">
+  <img src="docs/media/downloads.svg" alt="WallDesk downloads library" width="820">
+</p>
 
-### Applying Wallpapers
-When applying a wallpaper, you can choose how it fits your screen:
-- **Fill screen**: Crops to fill your entire display (default)
-- **Fit to screen**: Shows the entire image with potential bars
-- **Stretch**: Stretches to exactly fit (may distort aspect ratio)
-- **Center**: Centers the image with background color showing
-- **Span displays**: Spans across multiple monitors
-- **Tile**: Repeats the image pattern across your desktop
+<p align="center">
+  <img src="docs/media/settings.svg" alt="WallDesk settings" width="820">
+</p>
 
-### Managing Your Collection
-- Visit the **Downloads** section to see all wallpapers you've saved
-- Click the trash icon to remove a wallpaper (deletes the file from disk too)
-- Use the **Restore** option if you accidentally delete something
-- All files are stored in `Pictures/WallDesk` for easy access outside the app
+## Demo
 
-### Advanced Features
-#### Settings
-Access settings via the bottom-left gear icon to customize:
-- **Appearance**: Theme (light/dark/system) and colour palette
-- **Default fit**: How wallpapers are scaled by default
-- **Smooth scrolling**: Enable for fluid navigation (requires restart)
-- **Wallpaper sizes**: Minimum resolution or exact sizes to browse
-- **Wallhaven API key**: Optional key for higher rate limits and private access
+Click the preview below to open the demo recording once it is added:
 
-#### Collections
-Import public Wallhaven collections:
-1. Click the **+** button in the sidebar
-2. Paste a Wallhaven collection URL (e.g., `https://wallhaven.cc/collections/username/12345`)
-3. Browse the collection just like any other feed
-4. Collections update live when the owner adds new wallpapers
+<p align="center">
+  <a href="docs/media/walldesk-demo.mp4">
+    <img src="docs/media/video-preview.svg" alt="Watch the WallDesk demo" width="820">
+  </a>
+</p>
 
-## 🛠️ Technical Details
+Add the recording at `docs/media/walldesk-demo.mp4`. A useful demo should show:
 
-WallDesk is built with modern web technologies wrapped in a native desktop shell:
+1. Browsing the popular feed.
+2. Searching and changing filters.
+3. Opening a wallpaper and applying it.
+4. Downloading and favoriting a wallpaper.
+5. Opening the local library.
+6. Importing a collection.
+7. Switching themes and settings.
 
-- **Frontend**: Next.js 16 + React 19 + TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui components
-- **State Management**: Zustand stores with persistence
-- **Desktop Shell**: Tauri 2.x with Rust backend
-- **API Integration**: Wallhaven API + optional Pexels (currently disabled)
-- **Build System**: Cargo + npm + Tauri CLI
-- **Packaging**: NSIS installer for Windows distribution
+## Features
 
-## 📁 File Structure
+### Browse
 
+- Popular Wallhaven feed with infinite scrolling.
+- Search by keyword.
+- General, Anime, People, or all-category filtering.
+- Trending, newest, relevance, views, favorites, and random sorting.
+- Top-list time ranges.
+- Color, orientation, aspect-ratio, and resolution filters.
+- Minimum-resolution and exact-resolution presets.
+- Full wallpaper detail pages with preview and metadata.
+
+### Manage
+
+- Apply wallpapers directly from cards or detail pages.
+- Download, or download and apply in one action.
+- Crop, fit, stretch, center, span, and tile modes.
+- Download progress with byte and percentage feedback.
+- Favorites persisted locally.
+- Imported public Wallhaven collections.
+- Local Downloads library with missing-file detection.
+- Re-download a file when its local copy is missing.
+- Native context-menu actions for wallpaper cards.
+
+### Personalize
+
+- Light, dark, and system themes.
+- Six color palettes.
+- Optional smooth scrolling.
+- Optional image transition animations.
+- Responsive wallpaper grid.
+- Shadcn-style loading skeletons.
+- Subtle tab, card, switch, and button feedback.
+- Offline notices for network-only areas.
+
+### Native
+
+- Tauri 2 desktop shell with a frameless application window.
+- Rust-powered wallpaper application.
+- Files saved to `Pictures/WallDesk`.
+- Local settings, favorites, collection, and download stores.
+- Safe filename handling before files are written.
+- GitHub Release update checks and passive updater installation.
+
+## Download
+
+Download the latest Windows installer from
+[GitHub Releases](https://github.com/999shotoo/walldesk/releases).
+
+WallDesk currently targets Windows. The frontend and Rust code use several
+cross-platform Tauri APIs, but the supported release workflow and desktop
+wallpaper behavior are Windows-focused.
+
+## Development
+
+### Requirements
+
+- Windows 10 or newer
+- Node.js 20 or newer
+- npm
+- Rust stable with the MSVC toolchain
+- Visual Studio Build Tools with **Desktop development with C++**
+- WebView2
+
+See the official
+[Tauri Windows prerequisites](https://tauri.app/start/prerequisites/#windows)
+for the complete setup.
+
+### Setup
+
+```bash
+git clone https://github.com/999shotoo/walldesk.git
+cd walldesk
+npm install
 ```
+
+Run the frontend:
+
+```bash
+npm run dev
+```
+
+Run the complete desktop app:
+
+```bash
+npm run tauri dev
+```
+
+The Tauri development command starts the Next.js dev server automatically.
+Test native features inside the Tauri window because browser mode cannot fully
+provide filesystem, wallpaper, store, or updater APIs.
+
+### Build
+
+Build the static frontend:
+
+```bash
+npm run build
+```
+
+Build the native application and installer:
+
+```bash
+npm run tauri build
+```
+
+The frontend export is written to `out/`. Tauri packaging and updater artifacts
+are configured in [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json).
+
+## Settings and local files
+
+WallDesk stores user data locally through Tauri's store plugin:
+
+| Store | Contents |
+| --- | --- |
+| `settings.json` | Fit mode, resolution, smooth scrolling, image motion, and optional Wallhaven key |
+| `favorites.json` | Saved wallpaper records |
+| `collections.json` | Imported Wallhaven collection references |
+| Downloads ledger | Local file paths and download metadata |
+
+Downloaded images are written to:
+
+```text
+Pictures/
+└── WallDesk/
+    └── <provider>-<wallpaper-id>.<extension>
+```
+
+Anonymous browsing works without an API key. An optional personal Wallhaven
+key can be entered under **Settings → Advanced**. It is stored locally and sent
+as an `X-API-Key` header instead of being placed in request URLs.
+
+## Providers
+
+Wallhaven is the active provider. A Pexels integration remains in the codebase
+but is disabled by default because a distributed client-side API key cannot be
+kept secret.
+
+## Project structure
+
+```text
 walldesk/
-├── src-tauri/              # Rust/Tauri backend
-│   ├── src/
-│   │   ├── main.rs         # Application entry point
-│   │   ├── wallpaper.rs    # Desktop integration (setting wallpapers, downloads)
-│   │   └── lib.rs          # Command definitions and setup
-│   ├── capabilities/       # Security permissions
-│   ├── icons/              # Application icons
-│   └── tauri.conf.json     # Tauri configuration
-├── app/                    # Next.js frontend (app router)
-│   ├── (app)/              # Main application routes
-│   │   ├── page.tsx        # Home page
-│   │   ├── settings.tsx    # Settings page
-│   │   └── ...             # Other pages (search, collections, etc.)
-├── components/             # Reusable UI components
-│   ├── ui/                 # shadcn/ui primitives
-│   ├── common/             # App-specific components
-│   └── home/               # Home page components
-├── lib/                    # Custom hooks and utilities
-│   ├── api.ts              # API communication layer
-│   ├── settings.ts         # Persistent settings store
-│   ├── wallpaper.ts        # Wallpaper-specific utilities
-│   ├── store.ts            # Favorites management
-│   ├── collections.ts      # Collection imports
-│   ├── downloads.ts        # Download tracking
-│   ├── offline.ts          # Network status monitoring
-│   ├── resolution.ts       # Resolution filtering logic
-│   ├── theme.ts            # Colour theme management
-│   └── use_palette.ts      # Palette switching
-├── public/                 # Static assets
-│   └── splashscreen/       # Splash screen images
-└── .github/                # GitHub Actions workflows
-    └── workflows/
-        └── release.yml     # Windows-only release pipeline
+├── app/                  Next.js routes, layouts, and global styles
+├── components/
+│   ├── common/           Feed, cards, downloads, scrolling, and offline UI
+│   ├── home/             Home-page search interface
+│   └── ui/               Shared shadcn-style components
+├── lib/                  API, stores, settings, downloads, filters, and helpers
+├── docs/media/           README screenshots and demo placeholder
+├── public/               Splash-screen assets
+└── src-tauri/
+    ├── src/lib.rs        Tauri setup, startup, updater, and IPC
+    ├── src/wallpaper.rs  Native downloads and wallpaper operations
+    ├── capabilities/     Tauri permissions
+    └── tauri.conf.json   Window, bundle, and updater configuration
 ```
 
-## 🔒 Privacy & Security
+## Performance
 
-WallDesk respects your privacy:
-- **No telemetry** - We don't collect usage data or analytics
-- **Local storage only** - All settings, favorites, and downloads stay on your machine
-- **Optional API keys** - Wallhaven keys are stored encrypted in local storage
-- **Permission-minimal** - Only requests necessary filesystem and network permissions
-- **Open source** - Full source code available for inspection
+WallDesk is built for image-heavy feeds:
 
-### Network Connections
-WallDesk only connects to:
-- `wallhaven.cc` - For browsing and downloading wallpapers
-- `api.pexels.com` - Currently disabled in the code (would require user-provided API key)
-- `github.com` - For checking updates (via the built-in Tauri updater)
+- Cards use provider thumbnails instead of full-resolution images.
+- Full-size files are fetched only for user actions.
+- Images after the first visible group use lazy loading.
+- Responsive `sizes` hints reduce unnecessary image transfers.
+- Wallpaper cards are memoized.
+- Feed pages are deduplicated with independent provider cursors.
+- Download progress is throttled before it crosses the IPC bridge.
+- The default equal-height layout uses a regular CSS grid.
+- Smooth scrolling is opt-in so native scrolling remains the default.
 
-## 🤝 Contributing
+## Privacy
 
-WallDesk is open source and welcomes contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to:
-- Report bugs
-- Suggest features
-- Submit pull requests
-- Set up the development environment
+WallDesk contains no analytics or telemetry system. Settings, favorites,
+collections, and download metadata stay on the local machine.
 
-## 📄 License
+The app may connect to:
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- `wallhaven.cc` for wallpapers, search, collections, and downloads.
+- GitHub Releases for update metadata and update packages.
+- Pexels only if its provider integration is explicitly enabled.
 
-## 🙏 Acknowledgements
+Users are responsible for following each provider's terms, rate limits,
+licensing, and content policies when downloading images.
 
-- [Wallhaven](https://wallhaven.cc/) for providing the wallpaper API
-- [Pexels](https://www.pexels.com/) for their photo API (available but disabled by default)
-- [Tauri](https://tauri.app/) for the excellent desktop framework
-- [Next.js](https://nextjs.org/) for the React framework
-- All the open-source libraries used in this project
+## Contributing
+
+Issues, feature requests, and focused pull requests are welcome.
+
+Before opening a pull request:
+
+```bash
+npm run build
+git diff --check
+```
+
+Also test Tauri-dependent behavior with `npm run tauri dev`, and do not commit
+personal API keys, local settings, generated installers, or private media.
+
+## Acknowledgements
+
+- [Wallhaven](https://wallhaven.cc/) for the wallpaper API.
+- [Tauri](https://tauri.app/) for the native desktop runtime.
+- [Next.js](https://nextjs.org/) and [React](https://react.dev/) for the UI.
+- [Tailwind CSS](https://tailwindcss.com/) and shadcn/ui patterns.
+- [Lenis](https://lenis.darkroom.engineering/) for optional smooth scrolling.
+- [Framer Motion](https://motion.dev/) for selected UI transitions.
 
 ---
 
-*Made with ❤️ for Windows wallpaper enthusiasts*
-
-<!-- Image placeholders for documentation -->
-<details>
-<summary>📸 Screenshot Placeholders (for developers)</summary>
-
-| Screenshot | Description |
-|------------|-------------|
-| ![Main Interface](docs/screenshot-main.png) | Home screen showing popular wallpapers with search bar |
-| ![Wallpaper Detail](docs/screenshot-detail.png) | Detailed view of a single wallpaper with actions |
-| ![Settings Panel](docs/screenshot-settings.png) | Settings menu with theme, fit mode, and resolution options |
-| ![Downloads View](docs/screenshot-downloads.png) | Library of downloaded wallpapers with management options |
-| ![Collection Import](docs/screenshot-collections.png) | Dialog for importing Wallhaven collections by URL |
-| ![Offline Mode](docs/screenshot-offline.png) | Interface showing when offline with access to local content |
-
-*To add actual screenshots:*
-1. Capture images using Windows Snipping Tool or similar
-2. Save as PNG in the `/docs/` directory
-3. Reference them in the markdown above
-</details>
+<p align="center">
+  Made for people who care about their desktop.
+</p>

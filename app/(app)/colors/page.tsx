@@ -49,7 +49,7 @@ export default function ColorsPage() {
               aria-pressed={isActive}
               style={{ backgroundColor: `#${option.value}` }}
               className={cn(
-                "h-9 w-9 rounded-lg transition-transform",
+                "h-9 w-9 rounded-lg transition-[box-shadow,transform] duration-200 ease-out active:scale-90",
                 "ring-border ring-1",
                 isActive
                   ? "ring-primary scale-110 ring-2"

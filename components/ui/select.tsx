@@ -72,12 +72,17 @@ function SelectContent({
   >) {
   return (
     <SelectPrimitive.Portal>
+      {/* `positionMethod="fixed"` keeps the popup following its trigger on
+          scroll. The default "absolute" anchors a body-portaled popup to the
+          document, so scrolling the page (Lenis or native) left the dropdown
+          glued to the viewport while its trigger scrolled away. */}
       <SelectPrimitive.Positioner
         side={side}
         sideOffset={sideOffset}
         align={align}
         alignOffset={alignOffset}
         alignItemWithTrigger={alignItemWithTrigger}
+        positionMethod="fixed"
         className="isolate z-50"
       >
         <SelectPrimitive.Popup

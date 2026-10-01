@@ -105,6 +105,8 @@ function ComboboxContent({
         align={align}
         alignOffset={alignOffset}
         anchor={anchor}
+        // Same scroll-follow fix as the Select/Popover positioners.
+        positionMethod="fixed"
         className="isolate z-50"
       >
         <ComboboxPrimitive.Popup

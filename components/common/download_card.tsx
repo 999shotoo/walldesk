@@ -88,7 +88,7 @@ export function DownloadCard({
   }, [redownload, key, record.filename])
 
   const overlayButton = cn(
-    "h-8 w-8 rounded-full bg-white/10 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100",
+    "h-8 w-8 rounded-full bg-white/10 text-white opacity-0 backdrop-blur-sm transition-opacity duration-300 ease-out group-hover:opacity-100",
     "hover:bg-white/20 hover:text-white disabled:opacity-100"
   )
 
@@ -107,7 +107,7 @@ export function DownloadCard({
           fallbackSrc={record.thumbnail}
           eager={eager}
           wrapperClassName="aspect-video w-full rounded-lg"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className="transform-gpu h-full w-full object-cover will-change-transform transition-[opacity,transform] duration-300 ease-out group-hover:scale-105 group-hover:opacity-95"
           missingLabel="File was moved or deleted"
           // The image failing to decode is the earliest and cheapest notice that a
           // file has gone, and it costs no disk call — the card is drawing anyway.
@@ -115,8 +115,8 @@ export function DownloadCard({
         />
       </Link>
 
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-      <div className="pointer-events-none absolute bottom-0 right-0 left-0 p-4 text-white opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100" />
+      <div className="pointer-events-none absolute right-0 bottom-0 left-0 p-4 text-white opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100">
         <h3 className="truncate text-lg font-semibold capitalize">{record.title}</h3>
         {/* The filename, because this card is about a file — it is what the user
             would search their file manager for. */}
@@ -200,7 +200,7 @@ export function DownloadCard({
         </div>
       )}
 
-      <div className="pointer-events-none absolute top-2 left-2 rounded-full bg-white/10 px-2 py-1 text-xs text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+      <div className="pointer-events-none absolute top-2 left-2 rounded-full bg-white/10 px-2 py-1 text-xs text-white opacity-0 backdrop-blur-sm transition-opacity duration-300 ease-out group-hover:opacity-100">
         {record.provider}
       </div>
     </div>

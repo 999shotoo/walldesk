@@ -38,6 +38,8 @@ function DropdownMenuContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        // Same scroll-follow fix as the Select/Popover positioners.
+        positionMethod="fixed"
       >
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
