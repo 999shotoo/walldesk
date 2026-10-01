@@ -1,6 +1,6 @@
 {
   "name": "walldesk",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "private": true,
   "description": "A native desktop wallpaper browser and manager built with Next.js and Tauri.",
   "author": "Shoto",

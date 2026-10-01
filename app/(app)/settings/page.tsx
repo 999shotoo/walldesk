@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { invoke } from "@tauri-apps/api/core"
 import {
   Check,
   CheckCircle2,
@@ -12,6 +13,7 @@ import {
   Moon,
   Palette as PaletteIcon,
   RotateCcw,
+  RefreshCw,
   SlidersHorizontal,
   Sun,
 } from "lucide-react"
@@ -38,6 +40,7 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs"
+import { toastError, toastSuccess } from "@/lib/toast"
 
 const THEMES = [
   { value: "light", label: "Light", icon: Sun },
@@ -367,6 +370,49 @@ function SettingsCard({
 const TAB_IDS = ["appearance", "advanced"] as const
 type TabId = (typeof TAB_IDS)[number]
 
+function UpdateCheckButton() {
+  const [checking, setChecking] = useState(false)
+
+  const checkAndUpdate = async () => {
+    if (checking) return
+    setChecking(true)
+    try {
+      const status = await invoke<{
+        available: boolean
+        version: string | null
+      }>("check_for_update")
+
+      if (!status.available) {
+        toastSuccess("You are up to date", "No newer WallDesk release is available.")
+        return
+      }
+
+      toastSuccess(
+        `WallDesk v${status.version ?? "new"} is ready`,
+        "Downloading and installing the update…"
+      )
+      await invoke("install_update")
+    } catch (error: unknown) {
+      toastError("Update check failed", error)
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="shrink-0 gap-1.5 transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out hover:shadow-sm active:scale-[0.98]"
+      onClick={() => void checkAndUpdate()}
+      disabled={checking}
+    >
+      <RefreshCw className={cn("size-3.5", checking && "animate-spin")} />
+      {checking ? "Checking…" : "Check for updates"}
+    </Button>
+  )
+}
+
 export default function SettingsPage() {
   const hydrated = useSettings((state) => state.hydrated)
 
@@ -393,21 +439,24 @@ export default function SettingsPage() {
       <div className="bg-background/95 sticky top-0 z-10 -mx-4 px-4 pt-2 pb-3 backdrop-blur-sm">
         <h1 className="py-2 text-2xl font-semibold">Settings</h1>
         <Tabs defaultValue="appearance" className="mt-2">
-          <TabsList className="max-w-sm bg-transparent ">
-            {(
-              [
-                { id: "appearance", label: "Appearance", icon: PaletteIcon },
-                { id: "advanced", label: "Advanced", icon: SlidersHorizontal },
-              ] as { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[]
-            ).map(({ id, label, icon: Icon }) => (
-              <TabsTab key={id} value={id} className="flex-1 bg-card border">
-                <span className="flex items-center justify-center gap-1.5">
-                  <Icon className="size-3.5" />
-                  {label}
-                </span>
-              </TabsTab>
-            ))}
-          </TabsList>
+          <div className="flex items-center justify-between gap-3">
+            <TabsList className="max-w-sm bg-transparent">
+              {(
+                [
+                  { id: "appearance", label: "Appearance", icon: PaletteIcon },
+                  { id: "advanced", label: "Advanced", icon: SlidersHorizontal },
+                ] as { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[]
+              ).map(({ id, label, icon: Icon }) => (
+                <TabsTab key={id} value={id} className="flex-1 border bg-card">
+                  <span className="flex items-center justify-center gap-1.5">
+                    <Icon className="size-3.5" />
+                    {label}
+                  </span>
+                </TabsTab>
+              ))}
+            </TabsList>
+            <UpdateCheckButton />
+          </div>
 
           {/* Appearance */}
           <TabsPanel value="appearance" className="settings-tab-panel">
