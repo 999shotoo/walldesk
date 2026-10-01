@@ -50,7 +50,7 @@ export function UpdatePill() {
         // In a plain browser (Next static export preview) there is no backend,
         // so a failed invoke means "not a desktop app": stay silent.
         const status = await invoke<{ available: boolean; version: string | null }>(
-          "get_update_status"
+          "check_for_update"
         )
         if (cancelled || installingRef.current) return
         if (status.available) {
@@ -59,7 +59,8 @@ export function UpdatePill() {
         } else {
           setDismissed(true) // nothing to show; drop out silently
         }
-      } catch {
+      } catch (error: unknown) {
+        console.warn("could not check for app updates", error)
         if (!cancelled) setDismissed(true)
       }
     }

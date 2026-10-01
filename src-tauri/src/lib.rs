@@ -91,6 +91,7 @@ pub fn run() {
             set_complete,
             splash_ready,
             get_update_status,
+            check_for_update,
             install_update
         ])
         .setup(|app| {
@@ -384,6 +385,27 @@ async fn get_update_status(
             available: false,
             version: None,
         }))
+}
+
+/// Run an update check on demand from the main window. This avoids relying only
+/// on the fire-and-forget splash check, which can finish before the frontend
+/// mounts or fail transiently while the app is starting.
+#[tauri::command]
+async fn check_for_update(
+    app: AppHandle,
+    state: State<'_, Arc<Mutex<UpdateState>>>,
+) -> Result<UpdateState, String> {
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    let result = updater.check().await.map_err(|e| e.to_string())?;
+
+    let mut guard = state
+        .lock()
+        .map_err(|e| format!("failed to lock update state: {e}"))?;
+    guard.checked = true;
+    guard.available = result.is_some();
+    guard.version = result.map(|update| update.version.to_string());
+
+    Ok(guard.clone())
 }
 
 /// Download and install the pending update, then restart the app. Emits
