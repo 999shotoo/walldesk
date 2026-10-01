@@ -39,14 +39,12 @@
         }
       ]
     },
-    "store:default",
-    {
-      "identifier": "http:default",
-      "allow": [{ "url": "https://wallhaven.cc" }, { "url": "https://*.pexels.com" }],
-      "deny": [{ "url": "https://private.tauri.app" }]
-    }
-  ],
-    "updater:default": {
-      "allow": ["allow-check", "allow-download", "allow-install", "allow-download-and-install"]
-    }
+      "store:default",
+      "updater:default",
+      {
+        "identifier": "http:default",
+        "allow": [{ "url": "https://wallhaven.cc" }, { "url": "https://*.pexels.com" }],
+        "deny": [{ "url": "https://private.tauri.app" }]
+      }
+    ]
   }
