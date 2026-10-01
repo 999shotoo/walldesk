@@ -1,7 +1,15 @@
 {
   "name": "walldesk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
+  "description": "A native desktop wallpaper browser and manager built with Next.js and Tauri.",
+  "author": "Shoto",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/999shotoo/walldesk.git"
+  },
+  "homepage": "https://github.com/999shotoo/walldesk",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

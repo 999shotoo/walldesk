@@ -286,6 +286,10 @@ git diff --check
 Also test Tauri-dependent behavior with `npm run tauri dev`, and do not commit
 personal API keys, local settings, generated installers, or private media.
 
+## License
+
+WallDesk is released under the [MIT License](LICENSE).
+
 ## Acknowledgements
 
 - [Wallhaven](https://wallhaven.cc/) for the wallpaper API.
