@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/video-preview.svg" alt="WallDesk preview" width="860">
+  <img src="docs/media/home-page.jpg" alt="WallDesk preview" width="860">
 </p>
 
 <h1 align="center">WallDesk</h1>
@@ -39,7 +39,7 @@ collections, offline library access, and a customizable appearance.
 The app is designed to feel like a focused desktop tool rather than a website
 inside a window: files are saved to your normal Pictures folder, wallpaper
 changes happen through a Rust backend, and preferences stay on your machine.
-
+<!-- 
 ## Screenshots
 
 <p align="center">
@@ -64,27 +64,9 @@ changes happen through a Rust backend, and preferences stay on your machine.
 
 <p align="center">
   <img src="docs/media/settings.svg" alt="WallDesk settings" width="820">
-</p>
+</p> -->
 
-## Demo
-
-Click the preview below to open the demo recording once it is added:
-
-<p align="center">
-  <a href="docs/media/walldesk-demo.mp4">
-    <img src="docs/media/video-preview.svg" alt="Watch the WallDesk demo" width="820">
-  </a>
-</p>
-
-Add the recording at `docs/media/walldesk-demo.mp4`. A useful demo should show:
-
-1. Browsing the popular feed.
-2. Searching and changing filters.
-3. Opening a wallpaper and applying it.
-4. Downloading and favoriting a wallpaper.
-5. Opening the local library.
-6. Importing a collection.
-7. Switching themes and settings.
+## Demo - **[▶️ Watch the full demo on YouTube](https://www.youtube.com/watch?v=I93owxZaLyY)**
 
 ## Features
 
